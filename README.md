@@ -1,2 +1,2 @@
 # CashSpring
-Creación aplicación titulada "Prestamos" para una empresa pequeña de prestamos de dinero
+Creación aplicación titulada "CashSpring" para una empresa pequeña de prestamos de dinero
