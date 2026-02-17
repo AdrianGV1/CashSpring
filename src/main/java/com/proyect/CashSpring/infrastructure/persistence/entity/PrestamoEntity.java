@@ -51,10 +51,6 @@ public class PrestamoEntity {
     @Column(name="estado", nullable = false, length = 20)
     private EstadoPrestamo estado = EstadoPrestamo.ACTIVO;
 
-    // Solo para QUINCENAS_DOBLES (cuota fija)
-    @Column(name="cuota_quincenal_fija")
-    private Long cuotaQuincenalFija;
-
     // --- Relaciones ---
     @OneToMany(mappedBy = "prestamo", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("numeroCuota ASC")

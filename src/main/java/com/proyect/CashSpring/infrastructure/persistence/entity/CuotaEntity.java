@@ -28,7 +28,6 @@ public class CuotaEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // --- Relación con préstamo ---
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name="prestamo_id", nullable = false)
     private PrestamoEntity prestamo;
