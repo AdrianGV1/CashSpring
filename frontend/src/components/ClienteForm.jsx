@@ -1,15 +1,16 @@
 ﻿import { useState } from 'react';
 import MapPicker from './MapPicker';
 
-export default function ClienteForm({ onSubmit, initialData = {}, isLoading = false }) {
+export default function ClienteForm({ onSubmit, initialData, isLoading = false }) {
   const [formData, setFormData] = useState({
-    nombre: initialData.nombre || '',
-    telefono: initialData.telefono || '',
-    cedula: initialData.cedula || '',
-    latitud: initialData.latitud || null,
-    longitud: initialData.longitud || null,
-    direccionReferencia: initialData.direccionReferencia || '',
-    notas: initialData.notas || ''
+    nombre: initialData?.nombre || '',
+    apellido: initialData?.apellido || '',
+    telefono: initialData?.telefono || '',
+    cedula: initialData?.cedula || '',
+    latitud: initialData?.latitud || null,
+    longitud: initialData?.longitud || null,
+    direccionReferencia: initialData?.direccionReferencia || '',
+    notas: initialData?.notas || ''
   });
 
   const [errors, setErrors] = useState({});
@@ -27,6 +28,7 @@ export default function ClienteForm({ onSubmit, initialData = {}, isLoading = fa
   const validate = () => {
     const newErrors = {};
     if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es obligatorio';
+    if (!formData.apellido.trim()) newErrors.apellido = 'El apellido es obligatorio';
     if (!formData.telefono.trim()) newErrors.telefono = 'El teléfono es obligatorio';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -43,8 +45,15 @@ export default function ClienteForm({ onSubmit, initialData = {}, isLoading = fa
       <div className='form-group'>
         <label className='form-label'>Nombre <span className='text-red-500'>*</span></label>
         <input type='text' name='nombre' value={formData.nombre} onChange={handleChange} 
-               className='form-input' placeholder='Nombre completo del cliente' />
+               className='form-input' placeholder='Nombre del cliente' />
         {errors.nombre && <p className='text-red-500 text-sm mt-1'>{errors.nombre}</p>}
+      </div>
+
+      <div className='form-group'>
+        <label className='form-label'>Apellido <span className='text-red-500'>*</span></label>
+        <input type='text' name='apellido' value={formData.apellido} onChange={handleChange} 
+               className='form-input' placeholder='Apellido del cliente' />
+        {errors.apellido && <p className='text-red-500 text-sm mt-1'>{errors.apellido}</p>}
       </div>
 
       <div className='form-group'>

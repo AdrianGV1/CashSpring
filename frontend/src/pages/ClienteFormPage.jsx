@@ -43,7 +43,7 @@ export default function ClienteFormPage() {
         await clienteApi.create(formData);
       }
 
-      navigate('/');
+      navigate('/clientes');
     } catch (err) {
       setError(err.response?.data?.message || 'Error al guardar el cliente');
       console.error(err);
