@@ -30,12 +30,20 @@ public class ClienteEntity {
     @Column(name="cedula", length = 50)
     private String cedula;
 
-    @Column(name="direccion", length = 255)
-    private String direccion;
+    // Ubicación geográfica
+    @Column(name="latitud")
+    private Double latitud;
+
+    @Column(name="longitud")
+    private Double longitud;
+
+    @Column(name="direccion_referencia", length = 255)
+    private String direccionReferencia; // Dirección descriptiva opcional
 
     @Column(name="notas", columnDefinition = "text")
     private String notas;
 
+    @Builder.Default
     @Column(name="activo", nullable = false)
     private boolean activo = true;
 

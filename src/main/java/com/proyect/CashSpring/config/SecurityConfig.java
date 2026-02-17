@@ -1,3 +1,4 @@
+/* 
 package com.proyect.CashSpring.config;
 
 import org.springframework.context.annotation.Bean;
@@ -32,3 +33,4 @@ public class SecurityConfig {
                 .build();
     }
 }
+*/

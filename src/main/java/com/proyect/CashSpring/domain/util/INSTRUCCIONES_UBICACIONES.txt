@@ -1,0 +1,56 @@
+# CashSpring - Sistema Actualizado con Coordenadas DMS 
+ 
+## ¿Que se implemento? 
+ 
+### Backend Java 
+- ClienteEntity actualizado con latitud/longitud 
+- DTOs actualizados con validacion de coordenadas 
+- ClienteService genera automaticamente links de Google Maps, Waze y WhatsApp 
+- Soporte para coordenadas en formato decimal 
+ 
+### Frontend React 
+- MapPicker NUEVO con soporte para formato DMS 
+- Conversion automatica DMS a decimal 
+- Visualizacion del punto en el mapa 
+- Muestra ambos formatos: DMS y decimal 
+ 
+## Como usar el sistema? 
+ 
+### Formato de Coordenadas DMS: 
+```
+Latitud:  9°19'23.5"N & echo Longitud: 83°35'55.1"W 
+```
+ 
+### Pasos en el Frontend: 
+1. Abre http://localhost:5173 
+2. Click en "+ Nuevo Cliente" 
+3. Llena nombre y telefono 
+4. En la seccion de ubicacion, ingresa: 
+   - Latitud: 9°19'23.5"N & echo    - Longitud: 83°35'55.1"W 
+5. Click en "Mostrar en Mapa" 
+6. El mapa mostrara el punto exacto 
+7. Guarda el cliente 
+ 
+## URLs generadas automaticamente: 
+- Google Maps: Para navegar en navegador 
+- Waze: Para navegar en app movil 
+- WhatsApp: Para compartir ubicacion 
+ 
+## Reiniciar servicios: 
+ 
+### Backend: 
+1. Detener CashSpringApplication si esta corriendo 
+2. Ejecutar nuevamente desde el IDE 
+ 
+### Frontend: 
+En la terminal donde corre: 
+- Simplemente recarga el navegador (F5) 
+ 
+## Base de Datos: 
+Si necesitas migrar datos existentes, ejecuta: 
+```sql 
+ALTER TABLE clientes 
+ADD COLUMN latitud DOUBLE PRECISION, 
+ADD COLUMN longitud DOUBLE PRECISION, 
+ADD COLUMN direccion_referencia VARCHAR(255); 
+``` 

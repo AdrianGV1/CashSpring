@@ -9,6 +9,8 @@ import com.proyect.CashSpring.web.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Service
@@ -26,7 +28,9 @@ public class ClienteService {
                 .nombre(req.nombre())
                 .telefono(req.telefono())
                 .cedula(req.cedula())
-                .direccion(req.direccion())
+                .latitud(req.latitud())
+                .longitud(req.longitud())
+                .direccionReferencia(req.direccionReferencia())
                 .notas(req.notas())
                 .activo(true)
                 .build();
@@ -52,7 +56,9 @@ public class ClienteService {
         entity.setNombre(req.nombre());
         entity.setTelefono(req.telefono());
         entity.setCedula(req.cedula());
-        entity.setDireccion(req.direccion());
+        entity.setLatitud(req.latitud());
+        entity.setLongitud(req.longitud());
+        entity.setDireccionReferencia(req.direccionReferencia());
         entity.setNotas(req.notas());
         if (req.activo() != null) entity.setActivo(req.activo());
 
@@ -71,11 +77,36 @@ public class ClienteService {
                 e.getNombre(),
                 e.getTelefono(),
                 e.getCedula(),
-                e.getDireccion(),
+                e.getLatitud(),
+                e.getLongitud(),
+                e.getDireccionReferencia(),
                 e.getNotas(),
                 e.isActivo(),
                 e.getCreatedAt(),
-                e.getUpdatedAt()
+                e.getUpdatedAt(),
+                // Links generados dinámicamente
+                generateGoogleMapsUrl(e.getLatitud(), e.getLongitud()),
+                generateWazeUrl(e.getLatitud(), e.getLongitud()),
+                generateWhatsAppLocationUrl(e.getLatitud(), e.getLongitud(), e.getNombre())
         );
+    }
+
+    // Métodos auxiliares para generar URLs de mapas
+    private String generateGoogleMapsUrl(Double lat, Double lng) {
+        if (lat == null || lng == null) return null;
+        return String.format("https://maps.google.com/?q=%.6f,%.6f", lat, lng);
+    }
+
+    private String generateWazeUrl(Double lat, Double lng) {
+        if (lat == null || lng == null) return null;
+        return String.format("https://waze.com/ul?ll=%.6f,%.6f&navigate=yes", lat, lng);
+    }
+
+    private String generateWhatsAppLocationUrl(Double lat, Double lng, String nombre) {
+        if (lat == null || lng == null) return null;
+        String googleMapsUrl = generateGoogleMapsUrl(lat, lng);
+        String message = String.format("Ubicación de %s: %s", nombre != null ? nombre : "Cliente", googleMapsUrl);
+        String encodedMessage = URLEncoder.encode(message, StandardCharsets.UTF_8);
+        return String.format("https://wa.me/?text=%s", encodedMessage);
     }
 }

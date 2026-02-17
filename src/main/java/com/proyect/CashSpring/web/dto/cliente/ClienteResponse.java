@@ -7,9 +7,15 @@ public record ClienteResponse(
         String nombre,
         String telefono,
         String cedula,
-        String direccion,
+        Double latitud,
+        Double longitud,
+        String direccionReferencia,
         String notas,
         boolean activo,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        // Links generados dinámicamente
+        String googleMapsUrl,
+        String wazeUrl,
+        String whatsappLocationUrl
 ) {}
