@@ -31,34 +31,65 @@ public class PrestamoService {
         this.prestamoRepo = prestamoRepo;
     }
 
-    @Transactional
-    public PrestamoResponse crearPrestamo(PrestamoCreateRequest req) {
+   @Transactional
+public PrestamoResponse crearPrestamo(PrestamoCreateRequest req) {
 
-        ClienteEntity cliente = clienteRepo.findById(req.getClienteId())
-                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado: " + req.getClienteId()));
+    // Validar campos obligatorios del cliente
+    if (req.getCedula() == null || req.getCedula().isBlank())
+        throw new IllegalArgumentException("La cédula es obligatoria.");
+    if (req.getNombre() == null || req.getNombre().isBlank())
+        throw new IllegalArgumentException("El nombre es obligatorio.");
+    if (req.getTelefono() == null || req.getTelefono().isBlank())
+        throw new IllegalArgumentException("El teléfono es obligatorio.");
+    if (req.getUbicacion() == null || req.getUbicacion().isBlank())
+        throw new IllegalArgumentException("La ubicación es obligatoria.");
 
-        BigDecimal interes = (req.getInteresBase() == null) ? new BigDecimal("0.2000") : req.getInteresBase();
-
-        PrestamoEntity prestamo = PrestamoEntity.builder()
-                .cliente(cliente)
-                .montoPrestado(req.getMontoPrestado())
-                .interesBase(interes)
-                .tipoAcuerdo(req.getTipoAcuerdo())
-                .fechaInicio(req.getFechaInicio())
-                .estado(EstadoPrestamo.ACTIVO)
-                .build();
-
-        aplicarAcuerdoYGenerarCuotas(
-                prestamo,
-                req.getTipoAcuerdo(),
-                req.getMontoCuota1(),
-                req.getMontoCuota2(),
-                req.getCantidadCuotas()
-        );
-
-        PrestamoEntity guardado = prestamoRepo.save(prestamo);
-        return toResponse(guardado);
+    // Verificar que la cédula no esté registrada
+    if (clienteRepo.findByCedula(req.getCedula().trim()).isPresent()) {
+        throw new IllegalArgumentException("Ya existe un cliente registrado con esa cédula.");
     }
+
+    // Crear el cliente nuevo
+    ClienteEntity cliente = ClienteEntity.builder()
+            .nombre(req.getNombre().trim())
+            .telefono(req.getTelefono().trim())
+            .cedula(req.getCedula().trim())
+            .ubicacion(req.getUbicacion().trim())
+            .notas(req.getNotas())
+            .activo(true)
+            .build();
+    cliente = clienteRepo.save(cliente);
+
+    // Si el campo 'interesBase' es null, asignamos el valor por defecto
+    BigDecimal interes = (req.getInteresBase() == null) ? new BigDecimal("0.2000") : req.getInteresBase();
+
+    // Crear el objeto de préstamo
+    PrestamoEntity prestamo = PrestamoEntity.builder()
+            .cliente(cliente)
+            .montoPrestado(req.getMontoPrestado())
+            .interesBase(interes)
+            .tipoAcuerdo(req.getTipoAcuerdo())
+            .fechaInicio(req.getFechaInicio())
+            .estado(EstadoPrestamo.ACTIVO)
+            .build();
+
+    // Aplicar el acuerdo y generar las cuotas dependiendo del tipo de acuerdo
+    aplicarAcuerdoYGenerarCuotas(
+            prestamo,
+            req.getTipoAcuerdo(),
+            req.getCantidadQuincenas(),
+            req.getMontoPorQuincena()
+    );
+
+    // Guardar el préstamo en la base de datos
+    PrestamoEntity guardado = prestamoRepo.save(prestamo);
+
+    // Mapear el objeto guardado a la respuesta
+    return toResponse(guardado);
+}
+
+
+
 
     @Transactional
     public PrestamoResponse actualizarPrestamo(Long prestamoId, PrestamoUpdateRequest req) {
@@ -94,25 +125,39 @@ public class PrestamoService {
             requiereRecalculo = true;
         }
 
-        // Si cambias parámetros que afectan cuotas (en tu UpdateRequest deben existir estos campos)
-        if (req.getMontoCuota1() != null || req.getMontoCuota2() != null || req.getCantidadCuotas() != null) {
+        // Parámetros que afectan cuotas (por ahora solo PAGO_EN_MES)
+        if (req.getCantidadQuincenas() != null) {
             requiereRecalculo = true;
         }
 
         if (requiereRecalculo) {
             prestamo.getCuotas().clear();
+
+            // En UPDATE todavía NO permitimos cambiar el montoPorQuincena.
+            // Como no se guarda en BD, por ahora bloqueamos recalcular QUINCENAS_DOBLES en update.
+            if (prestamo.getTipoAcuerdo() == TipoAcuerdo.QUINCENAS_DOBLES) {
+                throw new IllegalArgumentException("Por ahora no se permite recalcular QUINCENAS_DOBLES en update, porque el montoPorQuincena solo se define al crear. Luego lo habilitamos.");
+            }
+
             aplicarAcuerdoYGenerarCuotas(
                     prestamo,
                     prestamo.getTipoAcuerdo(),
-                    req.getMontoCuota1(),
-                    req.getMontoCuota2(),
-                    req.getCantidadCuotas()
+                    req.getCantidadQuincenas(),
+                    null
             );
+
             prestamo.setEstado(EstadoPrestamo.ACTIVO);
         }
 
         PrestamoEntity guardado = prestamoRepo.save(prestamo);
         return toResponse(guardado);
+    }
+
+    @Transactional(readOnly = true)
+    public PrestamoResponse obtenerPrestamo(Long id) {
+        PrestamoEntity p = prestamoRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Préstamo no encontrado: " + id));
+        return toResponse(p);
     }
 
     @Transactional(readOnly = true)
@@ -130,16 +175,15 @@ public class PrestamoService {
     private void aplicarAcuerdoYGenerarCuotas(
             PrestamoEntity prestamo,
             TipoAcuerdo acuerdo,
-            Long montoCuota1,
-            Long montoCuota2,
-            Integer cantidadCuotas
+            Integer cantidadQuincenas, // SOLO PAGO_EN_MES
+            Long montoPorQuincena      // SOLO QUINCENAS_DOBLES
     ) {
         if (acuerdo == null) throw new IllegalArgumentException("tipoAcuerdo es obligatorio");
 
         switch (acuerdo) {
             case PENALIZACION_POR_DIA -> aplicarAcuerdo1(prestamo);
-            case PAGO_EN_MES -> aplicarAcuerdo2(prestamo, montoCuota1, montoCuota2);
-            case QUINCENAS_DOBLES -> aplicarAcuerdo3(prestamo, cantidadCuotas);
+            case PAGO_EN_MES -> aplicarAcuerdo2Variable(prestamo, cantidadQuincenas);
+            case QUINCENAS_DOBLES -> aplicarAcuerdo3(prestamo, montoPorQuincena);
         }
     }
 
@@ -152,53 +196,65 @@ public class PrestamoService {
         prestamo.getCuotas().add(crearCuota(prestamo, 1, venc, totalObjetivo));
     }
 
-    // Acuerdo 2: interés doble, 2 cuotas (15 y 30 días)
-    private void aplicarAcuerdo2(PrestamoEntity prestamo, Long montoCuota1, Long montoCuota2) {
-        BigDecimal interesDoble = prestamo.getInteresBase().multiply(new BigDecimal("2"));
-        long totalObjetivo = calcularTotalMontoMasInteres(prestamo.getMontoPrestado(), interesDoble);
-        prestamo.setTotalObjetivo(totalObjetivo);
+    /**
+     * ACUERDO 2 (PAGO_EN_MES) VARIABLE: 2 a 10 quincenas
+     * - Cada cuota = (montoPrestado / N) + (montoPrestado * interesBase)
+     * - La última absorbe el residuo del (montoPrestado / N)
+     */
+    private void aplicarAcuerdo2Variable(PrestamoEntity prestamo, Integer cantidadQuincenas) {
 
-        long c1;
-        long c2;
-
-        if (montoCuota1 == null && montoCuota2 == null) {
-            c1 = totalObjetivo / 2;
-            c2 = totalObjetivo - c1;
-        } else if (montoCuota1 != null && montoCuota2 != null) {
-            if (montoCuota1 + montoCuota2 != totalObjetivo) {
-                throw new IllegalArgumentException("En PAGO_EN_MES, montoCuota1 + montoCuota2 debe ser igual a totalObjetivo (" + totalObjetivo + ")");
-            }
-            c1 = montoCuota1;
-            c2 = montoCuota2;
-        } else {
-            throw new IllegalArgumentException("En PAGO_EN_MES, o envías ambas cuotas (montoCuota1 y montoCuota2) o no envías ninguna");
+        if (cantidadQuincenas == null || cantidadQuincenas < 2 || cantidadQuincenas > 10) {
+            throw new IllegalArgumentException("En PAGO_EN_MES, cantidadQuincenas debe ser entre 2 y 10");
         }
 
-        LocalDate v1 = prestamo.getFechaInicio().plusDays(15);
-        LocalDate v2 = prestamo.getFechaInicio().plusDays(30);
+        long montoPrestado = prestamo.getMontoPrestado();
 
-        prestamo.getCuotas().add(crearCuota(prestamo, 1, v1, c1));
-        prestamo.getCuotas().add(crearCuota(prestamo, 2, v2, c2));
+        // interés por quincena (por defecto 20% del préstamo)
+        long interesPorQuincena = BigDecimal.valueOf(montoPrestado)
+                .multiply(prestamo.getInteresBase()) // ej: 0.2000
+                .setScale(0, RoundingMode.HALF_UP)
+                .longValueExact();
+
+        // principal por quincena
+        long base = montoPrestado / cantidadQuincenas;
+        long residuo = montoPrestado - (base * cantidadQuincenas);
+
+        // total = principal + (interés por quincena * N)
+        long totalObjetivo = montoPrestado + (interesPorQuincena * cantidadQuincenas);
+        prestamo.setTotalObjetivo(totalObjetivo);
+
+        LocalDate venc = prestamo.getFechaInicio().plusDays(15);
+
+        for (int i = 1; i <= cantidadQuincenas; i++) {
+            long principal = base;
+            if (i == cantidadQuincenas) principal = base + residuo;
+
+            long montoCuota = principal + interesPorQuincena;
+
+            prestamo.getCuotas().add(crearCuota(prestamo, i, venc, montoCuota));
+            venc = venc.plusDays(15);
+        }
     }
 
-    // Acuerdo 3: total = monto*2, se paga en N quincenas (cantidadCuotas)
-    private void aplicarAcuerdo3(PrestamoEntity prestamo, Integer cantidadCuotas) {
-        if (cantidadCuotas == null || cantidadCuotas <= 0) {
-            throw new IllegalArgumentException("En QUINCENAS_DOBLES, cantidadCuotas es obligatoria y > 0");
+    // Acuerdo 3: total = monto*2, se paga con monto fijo por quincena, último absorbe residuo
+    private void aplicarAcuerdo3(PrestamoEntity prestamo, Long montoPorQuincena) {
+        if (montoPorQuincena == null || montoPorQuincena <= 0) {
+            throw new IllegalArgumentException("En QUINCENAS_DOBLES, montoPorQuincena es obligatorio y > 0");
         }
 
         long totalObjetivo = prestamo.getMontoPrestado() * 2;
         prestamo.setTotalObjetivo(totalObjetivo);
 
-        long base = totalObjetivo / cantidadCuotas;
-        long residuo = totalObjetivo - (base * cantidadCuotas);
-
+        long restante = totalObjetivo;
+        int numero = 1;
         LocalDate venc = prestamo.getFechaInicio().plusDays(15);
 
-        for (int i = 1; i <= cantidadCuotas; i++) {
-            long monto = base;
-            if (i == cantidadCuotas) monto = base + residuo; // último absorbe residuo
-            prestamo.getCuotas().add(crearCuota(prestamo, i, venc, monto));
+        while (restante > 0) {
+            long montoCuota = Math.min(montoPorQuincena, restante);
+            prestamo.getCuotas().add(crearCuota(prestamo, numero, venc, montoCuota));
+
+            restante -= montoCuota;
+            numero++;
             venc = venc.plusDays(15);
         }
     }
@@ -227,6 +283,7 @@ public class PrestamoService {
         PrestamoResponse resp = new PrestamoResponse();
         resp.setPrestamoId(p.getId());
         resp.setClienteId(p.getCliente().getId());
+        resp.setClienteNombre(p.getCliente().getNombre());
         resp.setMontoPrestado(p.getMontoPrestado());
         resp.setInteresBase(p.getInteresBase());
         resp.setTipoAcuerdo(p.getTipoAcuerdo());

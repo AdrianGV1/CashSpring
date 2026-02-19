@@ -16,22 +16,24 @@ export default function ClienteCard({ cliente }) {
         )}
       </div>
 
-      {cliente.direccionReferencia && (
-        <p className="text-sm text-gray-600 mb-3">📍 {cliente.direccionReferencia}</p>
-      )}
-
       {cliente.notas && (
         <p className="text-sm text-gray-500 italic mb-3">{cliente.notas.substring(0, 100)}...</p>
       )}
 
-      {cliente.latitud && cliente.longitud && (
+      {cliente.ubicacion && (
         <div className="flex gap-2 flex-wrap mb-3">
-          <a href={cliente.googleMapsUrl} target="_blank" rel="noopener noreferrer" 
-             className="btn btn-success text-sm">🗺️ Google Maps</a>
-          <a href={cliente.wazeUrl} target="_blank" rel="noopener noreferrer" 
-             className="btn btn-primary text-sm">🚗 Waze</a>
-          <a href={cliente.whatsappLocationUrl} target="_blank" rel="noopener noreferrer" 
-             className="btn btn-success text-sm">💬 Compartir</a>
+          {cliente.googleMapsUrl && (
+            <a href={cliente.googleMapsUrl} target="_blank" rel="noopener noreferrer"
+               className="btn btn-success text-sm">🗺️ Google Maps</a>
+          )}
+          {cliente.wazeUrl && (
+            <a href={cliente.wazeUrl} target="_blank" rel="noopener noreferrer"
+               className="btn btn-primary text-sm">🚗 Waze</a>
+          )}
+          {cliente.whatsappLocationUrl && (
+            <a href={cliente.whatsappLocationUrl} target="_blank" rel="noopener noreferrer"
+               className="btn btn-success text-sm">💬 Compartir</a>
+          )}
         </div>
       )}
 

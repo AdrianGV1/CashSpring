@@ -8,6 +8,7 @@ public class CuotaResponse {
 
     private Long cuotaId;
     private Long prestamoId;
+    private String clienteNombre;
 
     private Integer numeroCuota;
     private LocalDate fechaVencimiento;
@@ -21,6 +22,9 @@ public class CuotaResponse {
 
     public Long getPrestamoId() { return prestamoId; }
     public void setPrestamoId(Long prestamoId) { this.prestamoId = prestamoId; }
+
+    public String getClienteNombre() { return clienteNombre; }
+    public void setClienteNombre(String clienteNombre) { this.clienteNombre = clienteNombre; }
 
     public Integer getNumeroCuota() { return numeroCuota; }
     public void setNumeroCuota(Integer numeroCuota) { this.numeroCuota = numeroCuota; }

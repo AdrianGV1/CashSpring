@@ -15,7 +15,8 @@ const PrestamoFormPage = () => {
       await prestamoApi.create(prestamoData);
       navigate('/prestamos');
     } catch (err) {
-      setError('Error al crear el préstamo. Verifica los datos ingresados.');
+      const mensaje = err?.response?.data?.message;
+      setError(mensaje || 'Error al crear el préstamo. Verifica los datos ingresados.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -30,7 +31,7 @@ const PrestamoFormPage = () => {
     <div className="container">
       <div className="page-header">
         <h1>Nuevo Préstamo</h1>
-        <p className="subtitle">Crea un nuevo préstamo para un cliente</p>
+        <p className="subtitle">Registra el cliente y crea el préstamo en un solo paso</p>
       </div>
 
       {error && (

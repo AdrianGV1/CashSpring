@@ -16,6 +16,11 @@ export const prestamoApi = {
     return response.data;
   },
 
+  getById: async (id) => {
+    const response = await axiosInstance.get(`/${id}`);
+    return response.data;
+  },
+
   create: async (prestamoData) => {
     const response = await axiosInstance.post('', prestamoData);
     return response.data;

@@ -87,6 +87,7 @@ public class CuotaService {
         CuotaResponse r = new CuotaResponse();
         r.setCuotaId(c.getId());
         r.setPrestamoId(c.getPrestamo().getId());
+        r.setClienteNombre(c.getPrestamo().getCliente().getNombre());
         r.setNumeroCuota(c.getNumeroCuota());
         r.setFechaVencimiento(c.getFechaVencimiento());
         r.setMontoObjetivo(c.getMontoObjetivo());

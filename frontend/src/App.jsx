@@ -21,24 +21,24 @@ function Navigation() {
     <nav className="navbar">
       <div className="nav-container">
         <Link to="/" className="logo">
-          💰 CashSpring
+          CashSpring
         </Link>
         
         <div className="nav-links">
           <Link to="/" className={`nav-link ${isActive('/') && location.pathname === '/' ? 'active' : ''}`}>
-            🏠 Dashboard
+            Dashboard
           </Link>
           <Link to="/clientes" className={`nav-link ${isActive('/clientes') ? 'active' : ''}`}>
-            👥 Clientes
+            Clientes
           </Link>
           <Link to="/prestamos" className={`nav-link ${isActive('/prestamos') ? 'active' : ''}`}>
-            💰 Préstamos
+            Prestamos
           </Link>
           <Link to="/cuotas" className={`nav-link ${isActive('/cuotas') ? 'active' : ''}`}>
-            📅 Cuotas
+            Cuotas
           </Link>
           <Link to="/pagos" className={`nav-link ${isActive('/pagos') ? 'active' : ''}`}>
-            💳 Pagos
+            Pagos
           </Link>
         </div>
 
@@ -80,7 +80,7 @@ function App() {
         </main>
 
         <footer className="footer">
-          <p>&copy; 2026 CashSpring - Sistema de Microfinanzas</p>
+          <p>2026 CashSpring - Sistema de Microfinanzas</p>
         </footer>
       </div>
     </BrowserRouter>

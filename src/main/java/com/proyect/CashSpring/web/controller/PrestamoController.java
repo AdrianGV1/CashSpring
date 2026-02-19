@@ -33,7 +33,12 @@ public class PrestamoController {
 
     @GetMapping
     public java.util.List<PrestamoResponse> listar() {
-    return prestamoService.listarPrestamos();
+        return prestamoService.listarPrestamos();
+    }
+
+    @GetMapping("/{id}")
+    public PrestamoResponse obtener(@PathVariable Long id) {
+        return prestamoService.obtenerPrestamo(id);
     }
 
 }

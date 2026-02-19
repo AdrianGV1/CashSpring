@@ -28,9 +28,9 @@ const PrestamoCard = ({ prestamo, clienteNombre }) => {
 
   const getTipoAcuerdoText = (tipo) => {
     const tipos = {
+      PENALIZACION_POR_DIA: 'Penalización por día',
       PAGO_EN_MES: 'Pago en mes (2 cuotas)',
-      QUINCENAS_SIMPLES: 'Quincenas simples (4 cuotas)',
-      QUINCENAS_DOBLES: 'Quincenas dobles'
+      QUINCENAS_DOBLES: 'Quincenas dobles',
     };
     return tipos[tipo] || tipo;
   };

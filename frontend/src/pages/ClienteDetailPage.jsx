@@ -82,13 +82,6 @@ export default function ClienteDetailPage() {
                 </div>
               )}
 
-              {cliente.direccionReferencia && (
-                <div>
-                  <p className='text-sm text-gray-500'>Dirección</p>
-                  <p className='text-lg'>📍 {cliente.direccionReferencia}</p>
-                </div>
-              )}
-
               {cliente.notas && (
                 <div>
                   <p className='text-sm text-gray-500'>Notas</p>
@@ -108,16 +101,22 @@ export default function ClienteDetailPage() {
               </div>
             </div>
 
-            {cliente.latitud && cliente.longitud && (
+            {cliente.ubicacion && (
               <div className='mt-6'>
                 <p className='text-sm text-gray-500 mb-2'>Navegación</p>
                 <div className='flex gap-2 flex-wrap'>
-                  <a href={cliente.googleMapsUrl} target='_blank' rel='noopener noreferrer' 
-                     className='btn btn-success'>🗺️ Google Maps</a>
-                  <a href={cliente.wazeUrl} target='_blank' rel='noopener noreferrer' 
-                     className='btn btn-primary'>🚗 Waze</a>
-                  <a href={cliente.whatsappLocationUrl} target='_blank' rel='noopener noreferrer' 
-                     className='btn btn-success'>💬 Compartir</a>
+                  {cliente.googleMapsUrl && (
+                    <a href={cliente.googleMapsUrl} target='_blank' rel='noopener noreferrer'
+                       className='btn btn-success'>🗺️ Google Maps</a>
+                  )}
+                  {cliente.wazeUrl && (
+                    <a href={cliente.wazeUrl} target='_blank' rel='noopener noreferrer'
+                       className='btn btn-primary'>🚗 Waze</a>
+                  )}
+                  {cliente.whatsappLocationUrl && (
+                    <a href={cliente.whatsappLocationUrl} target='_blank' rel='noopener noreferrer'
+                       className='btn btn-success'>💬 Compartir</a>
+                  )}
                 </div>
               </div>
             )}
@@ -128,9 +127,9 @@ export default function ClienteDetailPage() {
               <div>
                 <p className='text-sm text-gray-500 mb-2'>Ubicación</p>
                 <div className='map-container'>
-                  <MapContainer center={[cliente.latitud, cliente.longitud]} zoom={15} 
+                  <MapContainer center={[cliente.latitud, cliente.longitud]} zoom={15}
                                 style={{ height: '100%', width: '100%' }}>
-                    <TileLayer attribution='&copy; OpenStreetMap' 
+                    <TileLayer attribution='&copy; OpenStreetMap'
                                url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' />
                     <Marker position={[cliente.latitud, cliente.longitud]} />
                   </MapContainer>
@@ -138,6 +137,38 @@ export default function ClienteDetailPage() {
                 <p className='text-xs text-gray-500 mt-2'>
                   Coordenadas: {cliente.latitud.toFixed(6)}, {cliente.longitud.toFixed(6)}
                 </p>
+                <div className='flex flex-col gap-2 mt-3'>
+                  {cliente.googleMapsUrl && (
+                    <a href={cliente.googleMapsUrl} target='_blank' rel='noopener noreferrer'
+                       className='btn btn-success w-full text-center'>🗺️ Abrir en Google Maps</a>
+                  )}
+                  {cliente.wazeUrl && (
+                    <a href={cliente.wazeUrl} target='_blank' rel='noopener noreferrer'
+                       className='btn btn-primary w-full text-center'>🚗 Abrir en Waze</a>
+                  )}
+                  {cliente.whatsappLocationUrl && (
+                    <a href={cliente.whatsappLocationUrl} target='_blank' rel='noopener noreferrer'
+                       className='btn btn-success w-full text-center'>💬 Compartir por WhatsApp</a>
+                  )}
+                </div>
+              </div>
+            ) : cliente.ubicacion ? (
+              <div>
+                <p className='text-sm text-gray-500 mb-2'>Abrir ubicación en</p>
+                <div className='flex flex-col gap-3'>
+                  {cliente.googleMapsUrl && (
+                    <a href={cliente.googleMapsUrl} target='_blank' rel='noopener noreferrer'
+                       className='btn btn-success w-full text-center'>🗺️ Abrir en Google Maps</a>
+                  )}
+                  {cliente.wazeUrl && (
+                    <a href={cliente.wazeUrl} target='_blank' rel='noopener noreferrer'
+                       className='btn btn-primary w-full text-center'>🚗 Abrir en Waze</a>
+                  )}
+                  {cliente.whatsappLocationUrl && (
+                    <a href={cliente.whatsappLocationUrl} target='_blank' rel='noopener noreferrer'
+                       className='btn btn-success w-full text-center'>💬 Compartir por WhatsApp</a>
+                  )}
+                </div>
               </div>
             ) : (
               <div className='text-center py-12 bg-gray-50 rounded'>

@@ -11,6 +11,7 @@ public class PrestamoResponse {
 
     private Long prestamoId;
     private Long clienteId;
+    private String clienteNombre;
 
     private Long montoPrestado;
     private BigDecimal interesBase;
@@ -21,9 +22,7 @@ public class PrestamoResponse {
     private Long totalObjetivo;
     private EstadoPrestamo estado;
 
-    // Para ver rápidamente las cuotas creadas
     private List<CuotaItem> cuotas;
-
 
     public static class CuotaItem {
         private Integer numeroCuota;
@@ -46,6 +45,9 @@ public class PrestamoResponse {
     public Long getClienteId() { return clienteId; }
     public void setClienteId(Long clienteId) { this.clienteId = clienteId; }
 
+    public String getClienteNombre() { return clienteNombre; }
+    public void setClienteNombre(String clienteNombre) { this.clienteNombre = clienteNombre; }
+
     public Long getMontoPrestado() { return montoPrestado; }
     public void setMontoPrestado(Long montoPrestado) { this.montoPrestado = montoPrestado; }
 
@@ -66,5 +68,4 @@ public class PrestamoResponse {
 
     public List<CuotaItem> getCuotas() { return cuotas; }
     public void setCuotas(List<CuotaItem> cuotas) { this.cuotas = cuotas; }
-
 }

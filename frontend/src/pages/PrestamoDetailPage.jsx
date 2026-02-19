@@ -30,13 +30,12 @@ const PrestamoDetailPage = () => {
       setLoading(true);
       setError(null);
       
-      const [prestamoData, cuotasData, pagosData] = await Promise.all([
-        prestamoApi.getAll(),
+      const [prestamoActual, cuotasData, pagosData] = await Promise.all([
+        prestamoApi.getById(id),
         cuotaApi.getByPrestamo(id),
         pagoApi.getByPrestamo(id)
       ]);
 
-      const prestamoActual = prestamoData.find(p => p.prestamoId === Number(id));
       if (!prestamoActual) {
         throw new Error('Préstamo no encontrado');
       }
@@ -46,8 +45,8 @@ const PrestamoDetailPage = () => {
       setPagos(pagosData);
 
       // Cargar datos del cliente
-      const clienteData = await clienteApi.getById(prestamoActual.clienteId);
-      setCliente(clienteData);
+      const clienteResp = await clienteApi.getById(prestamoActual.clienteId);
+      setCliente(clienteResp.data);
 
     } catch (err) {
       setError('Error al cargar los datos del préstamo');
@@ -147,7 +146,7 @@ const PrestamoDetailPage = () => {
           <h1>Préstamo #{prestamo.prestamoId}</h1>
           {cliente && (
             <p className="subtitle">
-              Cliente: {cliente.nombre} {cliente.apellido}
+              Cliente: {cliente.nombre}
             </p>
           )}
         </div>

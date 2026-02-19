@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { prestamoApi } from '../services/prestamoApi';
-import { clienteApi } from '../services/api';
 import PrestamoCard from '../components/PrestamoCard';
 
 const PrestamosPage = () => {
   const [prestamos, setPrestamos] = useState([]);
-  const [clientes, setClientes] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filtro, setFiltro] = useState('TODOS');
@@ -20,20 +18,8 @@ const PrestamosPage = () => {
     try {
       setLoading(true);
       setError(null);
-      const [prestamosData, clientesData] = await Promise.all([
-        prestamoApi.getAll(),
-        clienteApi.getAll()
-      ]);
-      
-      setPrestamos(prestamosData);
-      
-      // Crear mapa de clientes para fácil acceso
-      const clientesMap = {};
-      clientesData.forEach(cliente => {
-        clientesMap[cliente.clienteId] = `${cliente.nombre} ${cliente.apellido}`;
-      });
-      setClientes(clientesMap);
-      
+      const data = await prestamoApi.getAll();
+      setPrestamos(data);
     } catch (err) {
       setError('Error al cargar préstamos. Verifica que el backend esté corriendo.');
       console.error(err);
@@ -123,7 +109,7 @@ const PrestamosPage = () => {
             <PrestamoCard
               key={prestamo.prestamoId}
               prestamo={prestamo}
-              clienteNombre={clientes[prestamo.clienteId] || 'Cliente desconocido'}
+              clienteNombre={prestamo.clienteNombre || 'Cliente desconocido'}
             />
           ))}
         </div>

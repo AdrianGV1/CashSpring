@@ -9,9 +9,8 @@ import com.proyect.CashSpring.web.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class ClienteService {
@@ -28,9 +27,7 @@ public class ClienteService {
                 .nombre(req.nombre())
                 .telefono(req.telefono())
                 .cedula(req.cedula())
-                .latitud(req.latitud())
-                .longitud(req.longitud())
-                .direccionReferencia(req.direccionReferencia())
+                .ubicacion(normalizarUbicacion(req.ubicacion()))
                 .notas(req.notas())
                 .activo(true)
                 .build();
@@ -53,12 +50,11 @@ public class ClienteService {
     public ClienteResponse update(Long id, ClienteUpdateRequest req) {
         ClienteEntity entity = findEntityOrThrow(id);
 
+        // Tus DTOs son records con campos obligatorios (NotBlank), así que se setean directo.
         entity.setNombre(req.nombre());
         entity.setTelefono(req.telefono());
         entity.setCedula(req.cedula());
-        entity.setLatitud(req.latitud());
-        entity.setLongitud(req.longitud());
-        entity.setDireccionReferencia(req.direccionReferencia());
+        entity.setUbicacion(normalizarUbicacion(req.ubicacion()));
         entity.setNotas(req.notas());
         if (req.activo() != null) entity.setActivo(req.activo());
 
@@ -72,41 +68,175 @@ public class ClienteService {
     }
 
     private ClienteResponse toResponse(ClienteEntity e) {
+        Coordenadas coords = extraerCoordenadas(e.getUbicacion());
         return new ClienteResponse(
                 e.getId(),
                 e.getNombre(),
                 e.getTelefono(),
                 e.getCedula(),
-                e.getLatitud(),
-                e.getLongitud(),
-                e.getDireccionReferencia(),
+                e.getUbicacion(),
                 e.getNotas(),
                 e.isActivo(),
                 e.getCreatedAt(),
                 e.getUpdatedAt(),
-                // Links generados dinámicamente
-                generateGoogleMapsUrl(e.getLatitud(), e.getLongitud()),
-                generateWazeUrl(e.getLatitud(), e.getLongitud()),
-                generateWhatsAppLocationUrl(e.getLatitud(), e.getLongitud(), e.getNombre())
+                coords != null ? coords.lat() : null,
+                coords != null ? coords.lng() : null
         );
     }
 
-    // Métodos auxiliares para generar URLs de mapas
-    private String generateGoogleMapsUrl(Double lat, Double lng) {
-        if (lat == null || lng == null) return null;
-        return String.format("https://maps.google.com/?q=%.6f,%.6f", lat, lng);
+    // ----------------------------------------
+    // Parseo de coordenadas desde URLs de Maps
+    // ----------------------------------------
+
+    /**
+     * Extrae lat/lng de cualquier formato soportado:
+     *   lat,lng                      → Decimal directo
+     *   9,36276° N, 83,69524° O     → Decimal con símbolo y dirección (coma como separador decimal)
+     *   9°21'44.2"N 83°41'40.5"W    → Grados Minutos Segundos (DMS)
+     *   ?ll=lat,lng                  → Apple Maps
+     *   ?sll=lat,lng                 → Apple Maps source
+     *   @lat,lng,zoom                → Google Maps web/app
+     *   ?q=lat,lng                   → Google Maps (solo si numérico)
+     */
+    private Coordenadas extraerCoordenadas(String ubicacion) {
+        if (ubicacion == null || ubicacion.isBlank()) return null;
+        String s = ubicacion.trim();
+
+        // 1. Decimal directo: "9.362272, -83.694580"
+        Coordenadas c = parseLatLng(s);
+        if (c != null) return c;
+
+        // 2. Decimal con símbolo y dirección: "9,36276° N, 83,69524° O"
+        c = parseDecimalDireccion(s);
+        if (c != null) return c;
+
+        // 3. DMS: "9°21'44.2"N 83°41'40.5"W"
+        c = parseDMS(s);
+        if (c != null) return c;
+
+        // 4. ll= (Apple Maps — siempre numérico)
+        c = extraerParam(s, "ll=", 3);
+        if (c != null) return c;
+
+        // 5. sll= (Apple Maps source location)
+        c = extraerParam(s, "sll=", 4);
+        if (c != null) return c;
+
+        // 6. @lat,lng,zoom (Google Maps)
+        int at = s.indexOf('@');
+        if (at >= 0) {
+            String[] parts = s.substring(at + 1).split(",");
+            if (parts.length >= 2) {
+                c = parseLatLng(parts[0] + "," + parts[1]);
+                if (c != null) return c;
+            }
+        }
+
+        // 7. q=lat,lng (Google Maps — solo si numérico)
+        c = extraerParam(s, "q=", 2);
+        if (c != null) return c;
+
+        return null;
     }
 
-    private String generateWazeUrl(Double lat, Double lng) {
-        if (lat == null || lng == null) return null;
-        return String.format("https://waze.com/ul?ll=%.6f,%.6f&navigate=yes", lat, lng);
+    /**
+     * Formato: "9,36276° N, 83,69524° O"  o  "9.36276° N, 83.69524° O"
+     * También acepta: N/S/E/W/O (O = Oeste = West en español)
+     */
+    private Coordenadas parseDecimalDireccion(String s) {
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile(
+            "(-?\\d+[.,]\\d+)\\s*°?\\s*([NSns])\\s*[,;]?\\s*(-?\\d+[.,]\\d+)\\s*°?\\s*([EWOewo])",
+            java.util.regex.Pattern.CASE_INSENSITIVE
+        );
+        java.util.regex.Matcher m = p.matcher(s.trim());
+        if (!m.find()) return null;
+        try {
+            double lat = Double.parseDouble(m.group(1).replace(',', '.'));
+            double lng = Double.parseDouble(m.group(3).replace(',', '.'));
+            if (m.group(2).equalsIgnoreCase("S")) lat = -lat;
+            char lngDir = Character.toUpperCase(m.group(4).charAt(0));
+            if (lngDir == 'W' || lngDir == 'O') lng = -lng;
+            if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+            return new Coordenadas(lat, lng);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
-    private String generateWhatsAppLocationUrl(Double lat, Double lng, String nombre) {
-        if (lat == null || lng == null) return null;
-        String googleMapsUrl = generateGoogleMapsUrl(lat, lng);
-        String message = String.format("Ubicación de %s: %s", nombre != null ? nombre : "Cliente", googleMapsUrl);
-        String encodedMessage = URLEncoder.encode(message, StandardCharsets.UTF_8);
-        return String.format("https://wa.me/?text=%s", encodedMessage);
+    /**
+     * Formato DMS: "9°21'44.2"N 83°41'40.5"W"
+     * También acepta segundos con coma: "44,2"
+     */
+    private Coordenadas parseDMS(String s) {
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile(
+            "(\\d+)[\u00b0\\s]+(\\d+)['\'\\s]+(\\d+(?:[.,]\\d+)?)[\"″\\s]*([NSns])" +
+            "[\\s,;]+(\\d+)[\u00b0\\s]+(\\d+)['\'\\s]+(\\d+(?:[.,]\\d+)?)[\"″\\s]*([EWOewo])",
+            java.util.regex.Pattern.CASE_INSENSITIVE
+        );
+        java.util.regex.Matcher m = p.matcher(s.trim());
+        if (!m.find()) return null;
+        try {
+            double lat = dmsADecimal(
+                Double.parseDouble(m.group(1)),
+                Double.parseDouble(m.group(2)),
+                Double.parseDouble(m.group(3).replace(',', '.')),
+                m.group(4)
+            );
+            double lng = dmsADecimal(
+                Double.parseDouble(m.group(5)),
+                Double.parseDouble(m.group(6)),
+                Double.parseDouble(m.group(7).replace(',', '.')),
+                m.group(8)
+            );
+            if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+            return new Coordenadas(lat, lng);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private double dmsADecimal(double grados, double minutos, double segundos, String direccion) {
+        double decimal = grados + minutos / 60.0 + segundos / 3600.0;
+        char dir = Character.toUpperCase(direccion.charAt(0));
+        if (dir == 'S' || dir == 'W' || dir == 'O') decimal = -decimal;
+        return decimal;
+    }
+
+    private Coordenadas extraerParam(String s, String param, int paramLen) {
+        int idx = indexOfIgnoreCase(s, param);
+        if (idx < 0) return null;
+        String sub = s.substring(idx + paramLen);
+        int end = sub.indexOf('&');
+        if (end >= 0) sub = sub.substring(0, end);
+        return parseLatLng(sub);
+    }
+
+    private Coordenadas parseLatLng(String s) {
+        if (s == null) return null;
+        String cleaned = s.trim().replace(" ", "");
+        String[] parts = cleaned.split(",");
+        if (parts.length != 2) return null;
+        try {
+            double lat = Double.parseDouble(parts[0]);
+            double lng = Double.parseDouble(parts[1]);
+            if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+            return new Coordenadas(lat, lng);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private int indexOfIgnoreCase(String s, String token) {
+        return s.toLowerCase(Locale.ROOT).indexOf(token.toLowerCase(Locale.ROOT));
+    }
+
+    private record Coordenadas(double lat, double lng) {}
+
+    // Limpia espacios
+    private String normalizarUbicacion(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        if (s.isEmpty()) return null;
+        return s;
     }
 }
