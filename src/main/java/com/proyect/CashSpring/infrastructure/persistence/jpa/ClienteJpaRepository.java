@@ -5,6 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface ClienteJpaRepository extends JpaRepository<ClienteEntity, Long> {
-    // Método para buscar por cédula
     Optional<ClienteEntity> findByCedula(String cedula);
+    Optional<ClienteEntity> findByTelefono(String telefono);
 }

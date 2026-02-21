@@ -9,16 +9,18 @@ import java.time.LocalDate;
 
 public class PrestamoCreateRequest {
 
-    // Opcional: si se envía clienteId se puede usar para referencia, pero ya no es obligatorio
     private Long clienteId;
 
+    @NotNull
     private String nombre;
 
+    @NotNull
     private String telefono;
 
-    @NotNull(message = "La cédula es obligatoria")
+    @NotNull
     private String cedula;
 
+    @NotNull
     private String ubicacion;
 
     private String notas;
@@ -33,20 +35,13 @@ public class PrestamoCreateRequest {
 
     @NotNull
     @Positive
-    private Long montoPrestado; // CRC
+    private Long montoPrestado;
 
-
-    /**
-     * SOLO para PAGO_EN_MES (Acuerdo 2):
-     * cantidad de quincenas (2 a 10).
-     */
     private Integer cantidadQuincenas;
 
-    /**
-     * SOLO para QUINCENAS_DOBLES (Acuerdo 3):
-     * monto fijo por quincena (la última absorbe residuo).
-     */
     private Long montoPorQuincena;
+
+    // Getters y Setters
 
     public Long getClienteId() { return clienteId; }
     public void setClienteId(Long clienteId) { this.clienteId = clienteId; }

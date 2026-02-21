@@ -1,6 +1,7 @@
 package com.proyect.CashSpring.application.service;
 
 import com.proyect.CashSpring.domain.enums.EstadoCuota;
+import com.proyect.CashSpring.domain.enums.TipoAcuerdo;
 import com.proyect.CashSpring.infrastructure.persistence.entity.CuotaEntity;
 import com.proyect.CashSpring.infrastructure.persistence.entity.PrestamoEntity;
 import com.proyect.CashSpring.infrastructure.persistence.jpa.CuotaJpaRepository;
@@ -11,6 +12,7 @@ import com.proyect.CashSpring.web.dto.cuota.CuotaUpdateRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -22,6 +24,54 @@ public class CuotaService {
     public CuotaService(CuotaJpaRepository cuotaRepo, PrestamoJpaRepository prestamoRepo) {
         this.cuotaRepo = cuotaRepo;
         this.prestamoRepo = prestamoRepo;
+    }
+
+     @Transactional
+    public void extenderPrestamo(Long prestamoId, Long montoExtendido) {
+        // Verificar si el préstamo existe
+        PrestamoEntity prestamo = prestamoRepo.findById(prestamoId)
+                .orElseThrow(() -> new IllegalArgumentException("Préstamo no encontrado: " + prestamoId));
+
+        // Verificar si el préstamo es del tipo QUINCENAS_DOBLES y si el cliente ha pagado al menos el 50%
+        if (prestamo.getTipoAcuerdo() != TipoAcuerdo.QUINCENAS_DOBLES) {
+            throw new IllegalArgumentException("Solo los préstamos con acuerdo QUINCENAS_DOBLES pueden ser extendidos.");
+        }
+
+        // Verificar que el cliente haya pagado al menos el 50% de la deuda
+        long montoPagado = prestamo.getPagos().stream().mapToLong(pago -> pago.getMonto()).sum();
+        long montoAdeudado = prestamo.getTotalObjetivo() - montoPagado;
+        if (montoPagado < (prestamo.getTotalObjetivo() / 2)) {
+            throw new IllegalArgumentException("Debe haber pagado al menos el 50% del préstamo para poder extenderlo.");
+        }
+
+        // Extender el préstamo
+        long montoNuevo = prestamo.getMontoPrestado() + montoExtendido;
+        long totalNuevo = montoNuevo * 2;
+        prestamo.setMontoPrestado(montoNuevo);
+        prestamo.setTotalObjetivo(totalNuevo);
+        prestamo.setEsExtendido(true);  // Marcar el préstamo como extendido
+
+        // Crear nuevas cuotas con el nuevo monto
+        int numeroCuota = prestamo.getCuotas().size() + 1;
+        LocalDate fechaVencimiento = prestamo.getFechaInicio().plusDays(15); // Sumar la primera cuota
+
+        long montoCuota = totalNuevo / 13; // Ejemplo de 13 cuotas
+
+        for (int i = numeroCuota; i <= 13; i++) {
+            CuotaEntity cuota = CuotaEntity.builder()
+                    .prestamo(prestamo)
+                    .numeroCuota(i)
+                    .fechaVencimiento(fechaVencimiento)
+                    .montoObjetivo(montoCuota)
+                    .estado(EstadoCuota.PENDIENTE)
+                    .esCuotaExtendida(true)
+                    .build();
+            prestamo.getCuotas().add(cuota);
+            fechaVencimiento = fechaVencimiento.plusDays(15);
+        }
+
+        // Guardar los cambios
+        prestamoRepo.save(prestamo);
     }
 
     @Transactional(readOnly = true)
@@ -93,6 +143,8 @@ public class CuotaService {
         r.setMontoObjetivo(c.getMontoObjetivo());
         r.setEstado(c.getEstado());
         r.setFechaCubierta(c.getFechaCubierta());
+        r.setEsCuotaExtendida(c.getEsCuotaExtendida());
+        r.setMontoCancelado(c.getMontoCancelado() != null ? c.getMontoCancelado() : 0L);
         return r;
     }
 

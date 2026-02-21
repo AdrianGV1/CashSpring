@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { pagoApi } from '../services/pagoApi';
 import { prestamoApi } from '../services/prestamoApi';
 import { clienteApi } from '../services/api';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 
 const PagosPage = () => {
   const [pagos, setPagos] = useState([]);
@@ -14,10 +15,12 @@ const PagosPage = () => {
     loadData();
   }, []);
 
-  const loadData = async () => {
+  useAutoRefresh(() => loadData(true));
+
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
-      setError(null);
+      if (!silent) setLoading(true);
+      if (!silent) setError(null);
       
       const [pagosData, prestamosData, clientesData] = await Promise.all([
         pagoApi.getAll(),
@@ -41,10 +44,10 @@ const PagosPage = () => {
       setClientes(clientesMap);
 
     } catch (err) {
-      setError('Error al cargar pagos');
+      if (!silent) setError('Error al cargar pagos');
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 

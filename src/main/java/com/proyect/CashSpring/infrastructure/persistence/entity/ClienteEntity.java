@@ -12,10 +12,6 @@ import java.util.List;
 @Entity
 @Table(
         name = "clientes",
-        indexes = {
-                @Index(name = "idx_clientes_telefono", columnList = "telefono"),
-                @Index(name = "idx_clientes_cedula", columnList = "cedula")
-        },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_clientes_telefono", columnNames = {"telefono"}),
                 @UniqueConstraint(name = "uk_clientes_cedula", columnNames = {"cedula"})
@@ -33,16 +29,12 @@ public class ClienteEntity {
     @Column(name="nombre", nullable = false, length = 150)
     private String nombre;
 
-    // ÚNICO
     @Column(name="telefono", nullable = false, length = 30)
     private String telefono;
 
-    // ÚNICO (puede ser null)
     @Column(name="cedula", length = 50)
     private String cedula;
 
-    // Ej: "9.9325,-84.0781" o link de maps/whatsapp
-   // Link de Google Maps o Apple Maps
     @Column(name="ubicacion", length = 500)
     private String ubicacion;
 

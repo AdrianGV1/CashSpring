@@ -5,6 +5,7 @@ import PrestamoCard from '../components/PrestamoCard';
 import Loading from '../components/Loading';
 import EmptyState from '../components/EmptyState';
 import { ErrorAlert } from '../components/Alert';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 
 const PrestamosPage = () => {
   const [prestamos, setPrestamos] = useState([]);
@@ -17,17 +18,19 @@ const PrestamosPage = () => {
     loadData();
   }, []);
 
-  const loadData = async () => {
+  useAutoRefresh(() => loadData(true));
+
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
-      setError(null);
+      if (!silent) setLoading(true);
+      if (!silent) setError(null);
       const data = await prestamoApi.getAll();
       setPrestamos(data);
     } catch (err) {
-      setError('Error al cargar préstamos. Verifica que el backend esté corriendo.');
+      if (!silent) setError('Error al cargar préstamos. Verifica que el backend esté corriendo.');
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 

@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cuotaApi } from '../services/cuotaApi';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 
 const CuotasPage = () => {
   const [cuotas, setCuotas] = useState([]);
@@ -13,19 +14,21 @@ const CuotasPage = () => {
     loadData();
   }, []);
 
-  const loadData = async () => {
+  useAutoRefresh(() => loadData(true));
+
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
-      setError(null);
+      if (!silent) setLoading(true);
+      if (!silent) setError(null);
 
       const cuotasData = await cuotaApi.getAll();
       setCuotas(cuotasData);
 
     } catch (err) {
-      setError('Error al cargar cuotas');
+      if (!silent) setError('Error al cargar cuotas');
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -36,13 +39,29 @@ const CuotasPage = () => {
       minimumFractionDigits: 0,
     }).format(amount);
 
+  const formatMonto = (cuota) => {
+    const cancelado = cuota.montoCancelado || 0;
+    if (cuota.estado === 'CUBIERTA') {
+      return <span style={{ color: '#198754' }}>{formatMoney(cuota.montoObjetivo)}</span>;
+    }
+    if (cancelado > 0) {
+      return (
+        <span>
+          <span style={{ color: '#0d6efd', fontWeight: 600 }}>{formatMoney(cancelado)}</span>
+          <span style={{ color: '#6c757d' }}> / {formatMoney(cuota.montoObjetivo)}</span>
+        </span>
+      );
+    }
+    return <span>{formatMoney(cuota.montoObjetivo)}</span>;
+  };
+
   const formatDate = (dateString) =>
     new Date(dateString).toLocaleDateString('es-CR');
 
   const getEstadoBadge = (estado) => {
     const badges = {
       PENDIENTE: { cls: 'badge-warning', text: 'Pendiente' },
-      PAGADA:    { cls: 'badge-success', text: 'Pagada' },
+      CUBIERTA:  { cls: 'badge-success', text: 'Cubierta' },
       VENCIDA:   { cls: 'badge-danger',  text: 'Vencida' },
     };
     const b = badges[estado] || { cls: 'badge-secondary', text: estado };
@@ -50,13 +69,14 @@ const CuotasPage = () => {
   };
 
   const isVencida = (fechaVencimiento, estado) => {
-    if (estado === 'PAGADA') return false;
+    if (estado === 'CUBIERTA') return false;
     return new Date(fechaVencimiento) < new Date();
   };
 
   const cuotasFiltradas = cuotas.filter((c) => {
     if (filtro === 'TODOS') return true;
     if (filtro === 'VENCIDAS') return isVencida(c.fechaVencimiento, c.estado);
+    if (filtro === 'CUBIERTA') return c.estado === 'CUBIERTA';
     return c.estado === filtro;
   });
 
@@ -83,9 +103,9 @@ const CuotasPage = () => {
     );
   }
 
-  const cuotasVencidas  = cuotas.filter((c) => isVencida(c.fechaVencimiento, c.estado)).length;
+  const cuotasVencidas   = cuotas.filter((c) => isVencida(c.fechaVencimiento, c.estado)).length;
   const cuotasPendientes = cuotas.filter((c) => c.estado === 'PENDIENTE').length;
-  const cuotasPagadas   = cuotas.filter((c) => c.estado === 'PAGADA').length;
+  const cuotasCubiertas  = cuotas.filter((c) => c.estado === 'CUBIERTA').length;
 
   return (
     <div className="container">
@@ -111,10 +131,10 @@ const CuotasPage = () => {
             Pendientes ({cuotasPendientes})
           </button>
           <button
-            className={`filter-btn ${filtro === 'PAGADA' ? 'active' : ''}`}
-            onClick={() => setFiltro('PAGADA')}
+            className={`filter-btn ${filtro === 'CUBIERTA' ? 'active' : ''}`}
+            onClick={() => setFiltro('CUBIERTA')}
           >
-            Pagadas ({cuotasPagadas})
+            Cubiertas ({cuotasCubiertas})
           </button>
           <button
             className={`filter-btn ${filtro === 'VENCIDAS' ? 'active' : ''}`}
@@ -147,6 +167,7 @@ const CuotasPage = () => {
                   <th>Vencimiento</th>
                   <th>Monto</th>
                   <th>Estado</th>
+                  <th>Tipo</th>
                   <th>Fecha Cubierta</th>
                   <th>Acciones</th>
                 </tr>
@@ -156,7 +177,15 @@ const CuotasPage = () => {
                   const vencida = isVencida(cuota.fechaVencimiento, cuota.estado);
 
                   return (
-                    <tr key={cuota.cuotaId} style={vencida ? { background: '#fff5f5' } : {}}>
+                    <tr key={cuota.cuotaId} style={
+                      cuota.estado === 'CUBIERTA'
+                        ? { background: '#f0fff4' }
+                        : cuota.esCuotaExtendida
+                        ? { background: '#f3eeff' }
+                        : vencida
+                        ? { background: '#fff5f5' }
+                        : {}
+                    }>
                       <td>{cuota.clienteNombre || 'N/A'}</td>
                       <td>
                         <button
@@ -174,8 +203,17 @@ const CuotasPage = () => {
                           <span style={{ color: '#dc3545', fontWeight: 600, marginLeft: '0.4rem' }}>!</span>
                         )}
                       </td>
-                      <td>{formatMoney(cuota.montoObjetivo)}</td>
+                      <td>{formatMonto(cuota)}</td>
                       <td>{getEstadoBadge(cuota.estado)}</td>
+                      <td>
+                        {cuota.esCuotaExtendida ? (
+                          <span style={{ background: '#6f42c1', color: '#fff', padding: '0.2rem 0.5rem', borderRadius: '10px', fontSize: '0.75rem' }}>
+                            Extendida
+                          </span>
+                        ) : (
+                          <span style={{ color: '#6c757d', fontSize: '0.8rem' }}>Original</span>
+                        )}
+                      </td>
                       <td>{cuota.fechaCubierta ? formatDate(cuota.fechaCubierta) : '-'}</td>
                       <td>
                         <button

@@ -6,6 +6,7 @@ import { cuotaApi } from '../services/cuotaApi';
 import { pagoApi } from '../services/pagoApi';
 import Loading from '../components/Loading';
 import EmptyState from '../components/EmptyState';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -24,9 +25,11 @@ const Dashboard = () => {
     loadDashboardData();
   }, []);
 
-  const loadDashboardData = async () => {
+  useAutoRefresh(() => loadDashboardData(true));
+
+  const loadDashboardData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       
       const [clientes, prestamos, cuotas, pagos] = await Promise.all([
         clienteApi.getAll(),
@@ -79,7 +82,7 @@ const Dashboard = () => {
     } catch (err) {
       console.error('Error al cargar dashboard:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 

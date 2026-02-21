@@ -35,9 +35,30 @@ const PrestamoCard = ({ prestamo, clienteNombre }) => {
     return tipos[tipo] || tipo;
   };
 
+  const esFinalizado = prestamo.estado === 'FINALIZADO';
+
   return (
-    <div className="card prestamo-card">
-      <div className="card-header">
+    <div
+      className="card prestamo-card"
+      style={esFinalizado ? { border: '2px solid #10b981', opacity: 0.92 } : {}}
+    >
+      {esFinalizado && (
+        <div
+          style={{
+            background: 'linear-gradient(90deg, #10b981, #059669)',
+            color: '#fff',
+            textAlign: 'center',
+            fontWeight: 700,
+            fontSize: '0.78rem',
+            padding: '0.3rem 0',
+            letterSpacing: '0.08em',
+            borderRadius: '6px 6px 0 0'
+          }}
+        >
+          ✔ PRÉSTAMO PAGADO COMPLETO
+        </div>
+      )}
+      <div className="card-header" style={esFinalizado ? { background: '#f0fdf4' } : {}}>
         <div>
           <h3>{clienteNombre}</h3>
           <p className="text-muted">Préstamo #{prestamo.prestamoId}</p>
