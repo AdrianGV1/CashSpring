@@ -1,4 +1,4 @@
-﻿import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
+﻿import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import ClientesPage from './pages/ClientesPage'
 import ClienteFormPage from './pages/ClienteFormPage'
@@ -8,13 +8,21 @@ import PrestamoFormPage from './pages/PrestamoFormPage'
 import PrestamoDetailPage from './pages/PrestamoDetailPage'
 import CuotasPage from './pages/CuotasPage'
 import PagosPage from './pages/PagosPage'
+import LoginPage from './pages/LoginPage'
+import { ProtectedRoute, logout, getUsername } from './components/ProtectedRoute'
 
 function Navigation() {
   const location = useLocation();
+  const navigate = useNavigate();
   
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/';
     return location.pathname.startsWith(path);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   return (
@@ -42,9 +50,17 @@ function Navigation() {
           </Link>
         </div>
 
-        <Link to="/clientes/nuevo" className="btn btn-primary btn-sm">
-          + Nuevo Cliente
-        </Link>
+        <div className="nav-actions">
+          <Link to="/clientes/nuevo" className="btn btn-primary btn-sm">
+            + Nuevo Cliente
+          </Link>
+          <div className="user-menu">
+            <span className="username">👤 {getUsername()}</span>
+            <button onClick={handleLogout} className="btn btn-secondary btn-sm">
+              🚪 Salir
+            </button>
+          </div>
+        </div>
       </div>
     </nav>
   );
@@ -53,38 +69,93 @@ function Navigation() {
 function App() {
   return (
     <BrowserRouter>
-      <div className="app">
-        <Navigation />
+      <AppContent />
+    </BrowserRouter>
+  );
+}
 
-        <main className="main-content">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            
-            {/* Clientes */}
-            <Route path="/clientes" element={<ClientesPage />} />
-            <Route path="/clientes/nuevo" element={<ClienteFormPage />} />
-            <Route path="/clientes/:id/editar" element={<ClienteFormPage />} />
-            <Route path="/clientes/:id" element={<ClienteDetailPage />} />
-            
-            {/* Préstamos */}
-            <Route path="/prestamos" element={<PrestamosPage />} />
-            <Route path="/prestamos/nuevo" element={<PrestamoFormPage />} />
-            <Route path="/prestamos/:id" element={<PrestamoDetailPage />} />
-            
-            {/* Cuotas */}
-            <Route path="/cuotas" element={<CuotasPage />} />
-            
-            {/* Pagos */}
-            <Route path="/pagos" element={<PagosPage />} />
-          </Routes>
-        </main>
+function AppContent() {
+  const location = useLocation();
+  const isLoginPage = location.pathname === '/login';
 
+  return (
+    <div className="app">
+      {!isLoginPage && <Navigation />}
+
+      <main className={isLoginPage ? '' : 'main-content'}>
+        <Routes>
+          {/* Ruta pública de login */}
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* Rutas protegidas */}
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          
+          {/* Clientes */}
+          <Route path="/clientes" element={
+            <ProtectedRoute>
+              <ClientesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/clientes/nuevo" element={
+            <ProtectedRoute>
+              <ClienteFormPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/clientes/:id/editar" element={
+            <ProtectedRoute>
+              <ClienteFormPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/clientes/:id" element={
+            <ProtectedRoute>
+              <ClienteDetailPage />
+            </ProtectedRoute>
+          } />
+          
+          {/* Préstamos */}
+          <Route path="/prestamos" element={
+            <ProtectedRoute>
+              <PrestamosPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/prestamos/nuevo" element={
+            <ProtectedRoute>
+              <PrestamoFormPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/prestamos/:id" element={
+            <ProtectedRoute>
+              <PrestamoDetailPage />
+            </ProtectedRoute>
+          } />
+          
+          {/* Cuotas */}
+          <Route path="/cuotas" element={
+            <ProtectedRoute>
+              <CuotasPage />
+            </ProtectedRoute>
+          } />
+          
+          {/* Pagos */}
+          <Route path="/pagos" element={
+            <ProtectedRoute>
+              <PagosPage />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </main>
+
+      {!isLoginPage && (
         <footer className="footer">
           <p>2026 CashSpring - Sistema de Microfinanzas</p>
         </footer>
-      </div>
-    </BrowserRouter>
-  )
+      )}
+    </div>
+  );
 }
 
 export default App
