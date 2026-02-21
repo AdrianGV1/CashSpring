@@ -15,6 +15,12 @@ const PrestamoDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showPagoForm, setShowPagoForm] = useState(false);
+  const [showExtensionForm, setShowExtensionForm] = useState(false);
+  const [montoExtendido, setMontoExtendido] = useState('');
+  const [mantenerCuotaActual, setMantenerCuotaActual] = useState(true);
+  const [montoPorCuota, setMontoPorCuota] = useState('');
+  const [extensionError, setExtensionError] = useState(null);
+  const [extensionLoading, setExtensionLoading] = useState(false);
   const [pagoData, setPagoData] = useState({
     monto: '',
     fechaPago: new Date().toISOString().split('T')[0],
@@ -82,12 +88,67 @@ const PrestamoDetailPage = () => {
     }
   };
 
+  const handleExtenderPrestamo = async (e) => {
+    e.preventDefault();
+    const monto = Number(montoExtendido);
+    if (!monto || monto <= 0) {
+      setExtensionError('El monto de extensión debe ser un valor positivo.');
+      return;
+    }
+    if (!mantenerCuotaActual) {
+      const mpc = Number(montoPorCuota);
+      if (!mpc || mpc <= 0) {
+        setExtensionError('El monto por cuota debe ser un valor positivo.');
+        return;
+      }
+    }
+    const { totalPagado } = calcularProgreso();
+    if (totalPagado < prestamo.totalObjetivo / 2) {
+      setExtensionError('Debe haber pagado al menos el 50% del préstamo para poder extenderlo.');
+      return;
+    }
+    try {
+      setExtensionLoading(true);
+      setExtensionError(null);
+      const mpc = mantenerCuotaActual ? null : Number(montoPorCuota);
+      await prestamoApi.extender(id, monto, mpc);
+      await loadData();
+      setMontoExtendido('');
+      setMontoPorCuota('');
+      setMantenerCuotaActual(true);
+      setShowExtensionForm(false);
+      alert('¡Préstamo extendido exitosamente! Las nuevas cuotas han sido generadas.');
+    } catch (err) {
+      const mensaje = err?.response?.data?.message || err?.message;
+      setExtensionError(mensaje || 'Error al extender el préstamo. Verifica los datos.');
+      console.error(err);
+    } finally {
+      setExtensionLoading(false);
+    }
+  };
+
   const formatMoney = (amount) => {
     return new Intl.NumberFormat('es-CR', {
       style: 'currency',
       currency: 'CRC',
       minimumFractionDigits: 0
     }).format(amount);
+  };
+
+  const formatMontoCuota = (cuota) => {
+    const cancelado = cuota.montoCancelado || 0;
+    if (cuota.estado === 'CUBIERTA') {
+      return <span style={{ color: '#198754' }}>{formatMoney(cuota.montoObjetivo)}</span>;
+    }
+    if (cancelado > 0) {
+      return (
+        <span>
+          <span style={{ color: '#0d6efd', fontWeight: 600 }}>{formatMoney(cancelado)}</span>
+          <span style={{ color: '#6c757d' }}> / {formatMoney(cuota.montoObjetivo)}</span>
+        </span>
+      );
+    }
+    return <span>{formatMoney(cuota.montoObjetivo)}</span>;
   };
 
   const formatDate = (dateString) => {
@@ -97,8 +158,8 @@ const PrestamoDetailPage = () => {
   const getEstadoCuotaBadge = (estado) => {
     const badges = {
       PENDIENTE: { class: 'badge-warning', text: 'Pendiente' },
-      PAGADA: { class: 'badge-success', text: 'Pagada' },
-      VENCIDA: { class: 'badge-danger', text: 'Vencida' }
+      CUBIERTA:  { class: 'badge-success', text: 'Cubierta' },
+      VENCIDA:   { class: 'badge-danger',  text: 'Vencida' }
     };
     const badge = badges[estado] || { class: 'badge-secondary', text: estado };
     return <span className={`badge ${badge.class}`}>{badge.text}</span>;
@@ -156,9 +217,156 @@ const PrestamoDetailPage = () => {
         >
           {showPagoForm ? 'Cancelar' : '+ Registrar Pago'}
         </button>
+        {prestamo.tipoAcuerdo === 'QUINCENAS_DOBLES' && !prestamo.esExtendido && (
+          <button
+            onClick={() => { setShowExtensionForm(!showExtensionForm); setExtensionError(null); }}
+            className="btn btn-secondary"
+            style={{ marginLeft: '0.5rem' }}
+          >
+            {showExtensionForm ? 'Cancelar Extensión' : '🔄 Extender Préstamo'}
+          </button>
+        )}
       </div>
 
-      {/* Formulario de pago */}
+      {/* Formulario de extensión de préstamo */}
+      {showExtensionForm && (
+        <div className="card mb-4" style={{ borderLeft: '4px solid #6c757d' }}>
+          <div className="card-header">
+            <h3>🔄 Extender Préstamo</h3>
+          </div>
+          <div className="card-body">
+            {extensionError && (
+              <div className="alert alert-danger" style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: '#f8d7da', borderRadius: '6px', color: '#842029' }}>
+                {extensionError}
+              </div>
+            )}
+            <p style={{ color: '#6c757d', marginBottom: '1rem' }}>
+              Puedes extender este préstamo si has pagado al menos el <strong>50%</strong> del total.
+              El monto de extensión se sumará al capital, y se generarán nuevas cuotas.
+            </p>
+            <form onSubmit={handleExtenderPrestamo} className="form-container">
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Monto a extender (₡) *</label>
+                  <input
+                    type="number"
+                    value={montoExtendido}
+                    onChange={(e) => setMontoExtendido(e.target.value)}
+                    required
+                    min="1"
+                    placeholder="Ej: 100000"
+                  />
+                  {montoExtendido && Number(montoExtendido) > 0 && (
+                    <small style={{ color: '#388e3c' }}>
+                      Monto adicional a pagar: {formatMoney(Number(montoExtendido) * 2)}
+                    </small>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>Nuevo total del préstamo (₡)</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={
+                      montoExtendido && Number(montoExtendido) > 0
+                        ? formatMoney((prestamo.montoPrestado + Number(montoExtendido)) * 2)
+                        : '-'
+                    }
+                    style={{ background: '#f8f9fa', cursor: 'not-allowed' }}
+                  />
+                </div>
+              </div>
+
+              {/* Monto de las nuevas cuotas */}
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={mantenerCuotaActual}
+                    onChange={(e) => { setMantenerCuotaActual(e.target.checked); setMontoPorCuota(''); }}
+                  />
+                  Mantener el monto de cuota actual
+                  {mantenerCuotaActual && cuotas.length > 0 && (
+                    <span style={{ color: '#6c757d', fontSize: '0.85rem', fontWeight: 400 }}>
+                      ({formatMoney(cuotas[0]?.montoObjetivo)} / quincena)
+                    </span>
+                  )}
+                </label>
+              </div>
+
+              {!mantenerCuotaActual && (
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Nuevo monto por cuota (₡) *</label>
+                    <input
+                      type="number"
+                      value={montoPorCuota}
+                      onChange={(e) => setMontoPorCuota(e.target.value)}
+                      min="1"
+                      placeholder="Ej: 5000"
+                      required={!mantenerCuotaActual}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Cuotas pendientes que se generarán</label>
+                    <input
+                      type="text"
+                      readOnly
+                      style={{ background: '#f8f9fa', cursor: 'not-allowed' }}
+                      value={(() => {
+                        const ext = Number(montoExtendido);
+                        const mpc = Number(montoPorCuota);
+                        if (!ext || ext <= 0 || !mpc || mpc <= 0) return '-';
+                        // Nuevas cuotas = totalNuevo - montoObjetivo de todas las cuotas conservadas
+                        // (CUBIERTA + parciales PENDIENTE). NO usar totalPagado porque
+                        // los abonos parciales ya están dentro de montoObjetivo de las parciales
+                        // y se restív doble si se usa la fórmula (totalNuevo - pagado - parcialObjetivo).
+                        const totalNuevo = (prestamo.montoPrestado + ext) * 2;
+                        const objetivoKept = cuotas
+                          .filter(c => c.estado === 'CUBIERTA' || (c.estado === 'PENDIENTE' && c.montoCancelado > 0))
+                          .reduce((sum, c) => sum + c.montoObjetivo, 0);
+                        const remaining = Math.max(0, totalNuevo - objetivoKept);
+                        if (remaining <= 0) return 'Saldo ya cubierto';
+                        const n = Math.ceil(remaining / mpc);
+                        const residuo = remaining - mpc * (n - 1);
+                        return `${n} cuota${n !== 1 ? 's' : ''}${residuo !== mpc ? ` (última: ${formatMoney(residuo)})` : ''}`;
+                      })()}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Preview de cuotas a generar con mantener cuota actual */}
+              {mantenerCuotaActual && montoExtendido && Number(montoExtendido) > 0 && cuotas.length > 0 && (() => {
+                const mpc = cuotas[0]?.montoObjetivo || 0;
+                const adicional = Number(montoExtendido) * 2;
+                const n = Math.ceil(adicional / mpc);
+                const residuo = adicional - mpc * (n - 1);
+                return (
+                  <p style={{ color: '#495057', fontSize: '0.875rem', background: '#e9ecef', padding: '0.5rem 0.75rem', borderRadius: '6px' }}>
+                    Se generarán <strong>{n} cuota{n !== 1 ? 's' : ''}</strong> de <strong>{formatMoney(mpc)}</strong>
+                    {residuo !== mpc ? ` (última: ${formatMoney(residuo)})` : ''}, continuando desde la última cuota existente.
+                  </p>
+                );
+              })()}
+              <div className="form-actions">
+                <button
+                  type="button"
+                  onClick={() => { setShowExtensionForm(false); setExtensionError(null); }}
+                  className="btn btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={extensionLoading}>
+                  {extensionLoading ? 'Procesando...' : 'Confirmar Extensión'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Formulario de pago */}}
       {showPagoForm && (
         <div className="card mb-4">
           <div className="card-header">
@@ -244,6 +452,22 @@ const PrestamoDetailPage = () => {
                   {prestamo.estado}
                 </span>
               </div>
+              <div className="info-item">
+                <span className="label">Extensión:</span>
+                {prestamo.esExtendido ? (
+                  <span className="badge" style={{ background: '#6f42c1', color: '#fff', padding: '0.25rem 0.6rem', borderRadius: '12px', fontSize: '0.8rem' }}>
+                    ✅ Préstamo extendido
+                  </span>
+                ) : (
+                  <span style={{ color: '#6c757d', fontSize: '0.9rem' }}>No extendido</span>
+                )}
+              </div>
+              {prestamo.esExtendido && prestamo.montoExtendido > 0 && (
+                <div className="info-item">
+                  <span className="label">Monto extendido:</span>
+                  <span className="value" style={{ color: '#6f42c1' }}>{formatMoney(prestamo.montoExtendido)}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -301,17 +525,33 @@ const PrestamoDetailPage = () => {
                     <th>Monto</th>
                     <th>Estado</th>
                     <th>Fecha Cubierta</th>
+                    <th>Tipo</th>
                   </tr>
                 </thead>
                 <tbody>
                   {cuotas.map(cuota => (
-                    <tr key={cuota.cuotaId}>
+                    <tr key={cuota.cuotaId} style={
+                      cuota.estado === 'CUBIERTA'
+                        ? { background: '#f0fff4' }
+                        : cuota.esCuotaExtendida
+                        ? { background: '#f3eeff' }
+                        : {}
+                    }>
                       <td>{cuota.numeroCuota}</td>
                       <td>{formatDate(cuota.fechaVencimiento)}</td>
-                      <td>{formatMoney(cuota.montoObjetivo)}</td>
+                      <td>{formatMontoCuota(cuota)}</td>
                       <td>{getEstadoCuotaBadge(cuota.estado)}</td>
                       <td>
                         {cuota.fechaCubierta ? formatDate(cuota.fechaCubierta) : '-'}
+                      </td>
+                      <td>
+                        {cuota.esCuotaExtendida ? (
+                          <span className="badge" style={{ background: '#6f42c1', color: '#fff', padding: '0.2rem 0.5rem', borderRadius: '10px', fontSize: '0.75rem' }}>
+                            Extendida
+                          </span>
+                        ) : (
+                          <span style={{ color: '#6c757d', fontSize: '0.8rem' }}>Original</span>
+                        )}
                       </td>
                     </tr>
                   ))}

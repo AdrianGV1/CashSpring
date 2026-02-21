@@ -1,5 +1,6 @@
 package com.proyect.CashSpring.web.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -35,8 +36,22 @@ public class ApiExceptionHandler {
                 .body(error("BAD_REQUEST", ex.getMessage()));
     }
 
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<?> handleDataIntegrity(DataIntegrityViolationException ex) {
+        String msg = "Ya existe un registro con esos datos (valor duplicado)";
+        String cause = ex.getRootCause() != null ? ex.getRootCause().getMessage() : "";
+        if (cause.contains("uk_clientes_telefono") || cause.contains("telefono")) {
+            msg = "Ya existe un cliente registrado con ese teléfono.";
+        } else if (cause.contains("uk_clientes_cedula") || cause.contains("cedula")) {
+            msg = "Ya existe un cliente registrado con esa cédula.";
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(error("CONFLICT", msg));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleGeneric(Exception ex) {
+        ex.printStackTrace();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(error("INTERNAL_ERROR", "Ocurrió un error inesperado"));
     }

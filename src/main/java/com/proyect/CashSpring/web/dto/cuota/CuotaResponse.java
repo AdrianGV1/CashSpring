@@ -16,6 +16,8 @@ public class CuotaResponse {
 
     private EstadoCuota estado;
     private LocalDate fechaCubierta;
+    private Boolean esCuotaExtendida;
+    private Long montoCancelado;
 
     public Long getCuotaId() { return cuotaId; }
     public void setCuotaId(Long cuotaId) { this.cuotaId = cuotaId; }
@@ -40,4 +42,10 @@ public class CuotaResponse {
 
     public LocalDate getFechaCubierta() { return fechaCubierta; }
     public void setFechaCubierta(LocalDate fechaCubierta) { this.fechaCubierta = fechaCubierta; }
+
+    public Boolean getEsCuotaExtendida() { return esCuotaExtendida; }
+    public void setEsCuotaExtendida(Boolean esCuotaExtendida) { this.esCuotaExtendida = esCuotaExtendida; }
+
+    public Long getMontoCancelado() { return montoCancelado; }
+    public void setMontoCancelado(Long montoCancelado) { this.montoCancelado = montoCancelado; }
 }

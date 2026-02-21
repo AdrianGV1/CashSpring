@@ -24,15 +24,14 @@ public class PrestamoEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // --- Relación con cliente ---
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name="cliente_id", nullable = false)
     private ClienteEntity cliente;
 
-    // --- Datos del préstamo ---
     @Column(name="monto_prestado", nullable = false)
-    private Long montoPrestado; // CRC
+    private Long montoPrestado;
 
+    @Builder.Default
     @Column(name="interes_base", nullable = false, precision = 5, scale = 4)
     private BigDecimal interesBase = new BigDecimal("0.2000");
 
@@ -43,15 +42,14 @@ public class PrestamoEntity {
     @Column(name="fecha_inicio", nullable = false)
     private LocalDate fechaInicio;
 
-    // Total a pagar SIN multas (según acuerdo)
     @Column(name="total_objetivo", nullable = false)
-    private Long totalObjetivo; // CRC
+    private Long totalObjetivo;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name="estado", nullable = false, length = 20)
     private EstadoPrestamo estado = EstadoPrestamo.ACTIVO;
 
-    // --- Relaciones ---
     @OneToMany(mappedBy = "prestamo", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("numeroCuota ASC")
     @Builder.Default
@@ -61,6 +59,14 @@ public class PrestamoEntity {
     @OrderBy("fechaPago ASC")
     @Builder.Default
     private List<PagoEntity> pagos = new ArrayList<>();
+
+    @Builder.Default
+    @Column(name = "monto_extendido", nullable = false)
+    private Long montoExtendido = 0L;
+
+    @Builder.Default
+    @Column(name = "es_extendido", nullable = false)
+    private Boolean esExtendido = false;
 
     @CreationTimestamp
     @Column(name="created_at", nullable = false, updatable = false)

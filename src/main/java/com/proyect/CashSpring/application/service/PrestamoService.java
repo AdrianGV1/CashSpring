@@ -11,6 +11,8 @@ import com.proyect.CashSpring.infrastructure.persistence.jpa.PrestamoJpaReposito
 import com.proyect.CashSpring.web.dto.prestamo.PrestamoCreateRequest;
 import com.proyect.CashSpring.web.dto.prestamo.PrestamoResponse;
 import com.proyect.CashSpring.web.dto.prestamo.PrestamoUpdateRequest;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -26,70 +29,226 @@ public class PrestamoService {
     private final ClienteJpaRepository clienteRepo;
     private final PrestamoJpaRepository prestamoRepo;
 
+    @PersistenceContext
+    private EntityManager em;
+
     public PrestamoService(ClienteJpaRepository clienteRepo, PrestamoJpaRepository prestamoRepo) {
         this.clienteRepo = clienteRepo;
         this.prestamoRepo = prestamoRepo;
     }
 
-   @Transactional
-public PrestamoResponse crearPrestamo(PrestamoCreateRequest req) {
+     @Transactional
+    public PrestamoResponse extenderPrestamo(Long prestamoId, Long montoExtendido, Long montoPorCuota) {
+        // Verificar si el préstamo existe
+        PrestamoEntity prestamo = prestamoRepo.findById(prestamoId)
+                .orElseThrow(() -> new IllegalArgumentException("Préstamo no encontrado: " + prestamoId));
 
-    // Validar campos obligatorios del cliente
-    if (req.getCedula() == null || req.getCedula().isBlank())
-        throw new IllegalArgumentException("La cédula es obligatoria.");
-    if (req.getNombre() == null || req.getNombre().isBlank())
-        throw new IllegalArgumentException("El nombre es obligatorio.");
-    if (req.getTelefono() == null || req.getTelefono().isBlank())
-        throw new IllegalArgumentException("El teléfono es obligatorio.");
-    if (req.getUbicacion() == null || req.getUbicacion().isBlank())
-        throw new IllegalArgumentException("La ubicación es obligatoria.");
+        // Verificar si el préstamo es del tipo QUINCENAS_DOBLES
+        if (prestamo.getTipoAcuerdo() != TipoAcuerdo.QUINCENAS_DOBLES) {
+            throw new IllegalArgumentException("Solo los préstamos con acuerdo QUINCENAS_DOBLES pueden ser extendidos.");
+        }
 
-    // Verificar que la cédula no esté registrada
-    if (clienteRepo.findByCedula(req.getCedula().trim()).isPresent()) {
-        throw new IllegalArgumentException("Ya existe un cliente registrado con esa cédula.");
+        // Verificar que el cliente haya pagado al menos el 50% de la deuda
+        long montoPagado = prestamo.getPagos().stream().mapToLong(pago -> pago.getMonto()).sum();
+        if (montoPagado < (prestamo.getTotalObjetivo() / 2)) {
+            throw new IllegalArgumentException("Debe haber pagado al menos el 50% del préstamo para poder extenderlo.");
+        }
+
+        // Actualizar totales del préstamo
+        long montoNuevo = prestamo.getMontoPrestado() + montoExtendido;
+        long totalNuevo = montoNuevo * 2;
+        prestamo.setMontoPrestado(montoNuevo);
+        prestamo.setTotalObjetivo(totalNuevo);
+        prestamo.setMontoExtendido(montoExtendido);
+        prestamo.setEsExtendido(true);
+
+        // Monto por cuota: si no se indicó, usar el monto de la primera cuota existente
+        long mpc;
+        if (montoPorCuota != null && montoPorCuota > 0) {
+            mpc = montoPorCuota;
+        } else {
+            mpc = prestamo.getCuotas().stream()
+                    .min(Comparator.comparing(CuotaEntity::getNumeroCuota))
+                    .map(CuotaEntity::getMontoObjetivo)
+                    .orElse(montoExtendido * 2);
+        }
+
+        // Si se especificó un nuevo monto por cuota, eliminar SOLO las cuotas PENDIENTES
+        // que aún no tienen ningún pago parcial. Las cuotas con pago parcial (montoCancelado > 0)
+        // son intocables: el cliente ya abonó algo sobre ellas y deben liquidarse por su monto original.
+        if (montoPorCuota != null && montoPorCuota > 0) {
+            prestamo.getCuotas().removeIf(c ->
+                    c.getEstado() == EstadoCuota.PENDIENTE
+                    && (c.getMontoCancelado() == null || c.getMontoCancelado() == 0));
+            // Forzar flush para que los DELETE lleguen a BD ANTES de los INSERT de las nuevas
+            // cuotas, evitando violar el unique constraint (prestamo_id, numero_cuota).
+            em.flush();
+        }
+
+        // ─── IDENTIFICAR CUOTAS "LEJANAS CUBIERTAS" ────────────────────────────────
+        // Son las cuotas CUBIERTA que tienen alguna cuota PENDIENTE/parcial ANTES que ellas
+        // (es decir, fueron pagadas por exceso desde el final, no secuencialmente).
+        List<CuotaEntity> todasOrdenadas = prestamo.getCuotas().stream()
+                .sorted(Comparator.comparing(CuotaEntity::getNumeroCuota))
+                .collect(java.util.stream.Collectors.toList());
+
+        // Encontrar el límite del bloque CUBIERTA secuencial desde el inicio
+        int limiteSecuencial = 0;
+        for (CuotaEntity c : todasOrdenadas) {
+            if (c.getEstado() == EstadoCuota.CUBIERTA) {
+                limiteSecuencial = c.getNumeroCuota();
+            } else {
+                break; // primer PENDIENTE/parcial rompe la secuencia
+            }
+        }
+
+        final int limiteSeq = limiteSecuencial;
+
+        // Far-end CUBIERTAs: CUBIERTA con número > limiteSecuencial
+        List<CuotaEntity> farEndCubiertas = todasOrdenadas.stream()
+                .filter(c -> c.getEstado() == EstadoCuota.CUBIERTA && c.getNumeroCuota() > limiteSeq)
+                .sorted(Comparator.comparing(CuotaEntity::getNumeroCuota))
+                .collect(java.util.stream.Collectors.toList());
+
+        // Cuotas "activas" (todo menos las far-end): define el bloque central de la tabla
+        List<CuotaEntity> cuotasActivas = todasOrdenadas.stream()
+                .filter(c -> !(c.getEstado() == EstadoCuota.CUBIERTA && c.getNumeroCuota() > limiteSeq))
+                .collect(java.util.stream.Collectors.toList());
+
+        int ultimoNumeroActivo = cuotasActivas.stream()
+                .mapToInt(CuotaEntity::getNumeroCuota)
+                .max()
+                .orElse(0);
+
+        LocalDate ultimaFechaActiva = cuotasActivas.stream()
+                .max(Comparator.comparing(CuotaEntity::getNumeroCuota))
+                .map(CuotaEntity::getFechaVencimiento)
+                .orElse(prestamo.getFechaInicio());
+
+        // ─── CREAR CUOTAS DE EXTENSIÓN después del bloque activo ───────────────────
+        // Las nuevas cuotas deben cubrir exactamente el saldo no representado por cuotas existentes:
+        //   montoAdicional = totalNuevo - sum(montoObjetivo de TODAS las cuotas que se conservan)
+        // ¿Por qué NO usar (totalNuevo - montoPagado - montoParcialesObjetivo)?
+        //   Porque montoPagado ya incluye los abonos parciales, y montoParcialesObjetivo los volvería
+        //   a descontar, generando una doble resta y un saldo incorrecto.
+        long montoAdicional;
+        if (montoPorCuota != null && montoPorCuota > 0) {
+            // "Kept" = cuotasActivas que sobrevivieron (CUBIERTA + PENDIENTE-parcial) + far-end CUBIERTAs
+            long objetivoKept = java.util.stream.Stream
+                    .concat(cuotasActivas.stream(), farEndCubiertas.stream())
+                    .mapToLong(CuotaEntity::getMontoObjetivo)
+                    .sum();
+            montoAdicional = Math.max(0, totalNuevo - objetivoKept);
+        } else {
+            montoAdicional = montoExtendido * 2;
+        }
+        long numNuevas = (montoAdicional > 0) ? (montoAdicional + mpc - 1) / mpc : 0;
+
+        // ANTES de crear las nuevas cuotas, asignar números temporales negativos a las
+        // far-end para que no choquen con los números que vamos a crear (unique constraint).
+        // Se hace flush() explícito para forzar a Hibernate a enviar los UPDATEs a la BD
+        // ANTES de los INSERTs de las nuevas cuotas (Hibernate hace INSERT antes que UPDATE).
+        if (!farEndCubiertas.isEmpty()) {
+            int tmp = -1;
+            for (CuotaEntity fe : farEndCubiertas) {
+                fe.setNumeroCuota(tmp--);
+            }
+            em.flush(); // fuerza los UPDATE a BD antes de los INSERT de extensión
+        }
+
+        LocalDate fechaVencimiento = ultimaFechaActiva.plusDays(15);
+
+        for (int i = 1; i <= numNuevas; i++) {
+            long montoCuota = (i < numNuevas) ? mpc : (montoAdicional - mpc * (numNuevas - 1));
+            CuotaEntity cuota = CuotaEntity.builder()
+                    .prestamo(prestamo)
+                    .numeroCuota(ultimoNumeroActivo + i)
+                    .fechaVencimiento(fechaVencimiento)
+                    .montoObjetivo(montoCuota)
+                    .estado(EstadoCuota.PENDIENTE)
+                    .esCuotaExtendida(true)
+                    .build();
+            prestamo.getCuotas().add(cuota);
+            fechaVencimiento = fechaVencimiento.plusDays(15);
+        }
+
+        // ─── REPOSICIONAR las far-end CUBIERTAs al final con nuevas fechas ─────────
+        // Ahora asignamos los números definitivos y las fechas al final de todo.
+        // fechaVencimiento ya apunta al slot siguiente al último de extensión.
+        if (!farEndCubiertas.isEmpty()) {
+            int siguienteNumero = ultimoNumeroActivo + (int) numNuevas + 1;
+            for (CuotaEntity fe : farEndCubiertas) {
+                fe.setNumeroCuota(siguienteNumero++);
+                fe.setFechaVencimiento(fechaVencimiento);
+                fechaVencimiento = fechaVencimiento.plusDays(15);
+            }
+        }
+
+        // Guardar los cambios
+        PrestamoEntity guardado = prestamoRepo.save(prestamo);
+        return toResponse(guardado);
     }
 
-    // Crear el cliente nuevo
-    ClienteEntity cliente = ClienteEntity.builder()
-            .nombre(req.getNombre().trim())
-            .telefono(req.getTelefono().trim())
-            .cedula(req.getCedula().trim())
-            .ubicacion(req.getUbicacion().trim())
-            .notas(req.getNotas())
-            .activo(true)
-            .build();
-    cliente = clienteRepo.save(cliente);
+    @Transactional
+    public PrestamoResponse crearPrestamo(PrestamoCreateRequest req) {
+        // Validar campos obligatorios del cliente
+        if (req.getCedula() == null || req.getCedula().isBlank())
+            throw new IllegalArgumentException("La cédula es obligatoria.");
+        if (req.getNombre() == null || req.getNombre().isBlank())
+            throw new IllegalArgumentException("El nombre es obligatorio.");
+        if (req.getTelefono() == null || req.getTelefono().isBlank())
+            throw new IllegalArgumentException("El teléfono es obligatorio.");
+        if (req.getUbicacion() == null || req.getUbicacion().isBlank())
+            throw new IllegalArgumentException("La ubicación es obligatoria.");
 
-    // Si el campo 'interesBase' es null, asignamos el valor por defecto
-    BigDecimal interes = (req.getInteresBase() == null) ? new BigDecimal("0.2000") : req.getInteresBase();
+        // Verificar que la cédula no esté registrada
+        if (clienteRepo.findByCedula(req.getCedula().trim()).isPresent()) {
+            throw new IllegalArgumentException("Ya existe un cliente registrado con esa cédula.");
+        }
 
-    // Crear el objeto de préstamo
-    PrestamoEntity prestamo = PrestamoEntity.builder()
-            .cliente(cliente)
-            .montoPrestado(req.getMontoPrestado())
-            .interesBase(interes)
-            .tipoAcuerdo(req.getTipoAcuerdo())
-            .fechaInicio(req.getFechaInicio())
-            .estado(EstadoPrestamo.ACTIVO)
-            .build();
+        // Verificar que el teléfono no esté registrado
+        if (clienteRepo.findByTelefono(req.getTelefono().trim()).isPresent()) {
+            throw new IllegalArgumentException("Ya existe un cliente registrado con ese teléfono.");
+        }
 
-    // Aplicar el acuerdo y generar las cuotas dependiendo del tipo de acuerdo
-    aplicarAcuerdoYGenerarCuotas(
-            prestamo,
-            req.getTipoAcuerdo(),
-            req.getCantidadQuincenas(),
-            req.getMontoPorQuincena()
-    );
+        // Crear el cliente nuevo
+        ClienteEntity cliente = ClienteEntity.builder()
+                .nombre(req.getNombre().trim())
+                .telefono(req.getTelefono().trim())
+                .cedula(req.getCedula().trim())
+                .ubicacion(req.getUbicacion().trim())
+                .notas(req.getNotas())
+                .activo(true)
+                .build();
+        cliente = clienteRepo.save(cliente);
 
-    // Guardar el préstamo en la base de datos
-    PrestamoEntity guardado = prestamoRepo.save(prestamo);
+        // Si el campo 'interesBase' es null, asignamos el valor por defecto
+        BigDecimal interes = (req.getInteresBase() == null) ? new BigDecimal("0.2000") : req.getInteresBase();
 
-    // Mapear el objeto guardado a la respuesta
-    return toResponse(guardado);
-}
+        // Crear el objeto de préstamo
+        PrestamoEntity prestamo = PrestamoEntity.builder()
+                .cliente(cliente)
+                .montoPrestado(req.getMontoPrestado())
+                .interesBase(interes)
+                .tipoAcuerdo(req.getTipoAcuerdo())
+                .fechaInicio(req.getFechaInicio())
+                .estado(EstadoPrestamo.ACTIVO)
+                .build();
 
+        // Aplicar el acuerdo y generar las cuotas dependiendo del tipo de acuerdo
+        aplicarAcuerdoYGenerarCuotas(
+                prestamo,
+                req.getTipoAcuerdo(),
+                req.getCantidadQuincenas(),
+                req.getMontoPorQuincena()
+        );
 
+        // Guardar el préstamo en la base de datos
+        PrestamoEntity guardado = prestamoRepo.save(prestamo);
 
+        // Mapear el objeto guardado a la respuesta
+        return toResponse(guardado);
+    }
 
     @Transactional
     public PrestamoResponse actualizarPrestamo(Long prestamoId, PrestamoUpdateRequest req) {
@@ -290,6 +449,8 @@ public PrestamoResponse crearPrestamo(PrestamoCreateRequest req) {
         resp.setFechaInicio(p.getFechaInicio());
         resp.setTotalObjetivo(p.getTotalObjetivo());
         resp.setEstado(p.getEstado());
+        resp.setEsExtendido(p.getEsExtendido());
+        resp.setMontoExtendido(p.getMontoExtendido());
 
         List<PrestamoResponse.CuotaItem> cuotas = new ArrayList<>();
         for (CuotaEntity c : p.getCuotas()) {
@@ -297,6 +458,8 @@ public PrestamoResponse crearPrestamo(PrestamoCreateRequest req) {
             item.setNumeroCuota(c.getNumeroCuota());
             item.setFechaVencimiento(c.getFechaVencimiento());
             item.setMontoObjetivo(c.getMontoObjetivo());
+            item.setMontoCancelado(c.getMontoCancelado() != null ? c.getMontoCancelado() : 0L);
+            item.setEsCuotaExtendida(c.getEsCuotaExtendida());
             cuotas.add(item);
         }
         resp.setCuotas(cuotas);

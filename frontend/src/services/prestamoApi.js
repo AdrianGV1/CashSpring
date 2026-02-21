@@ -29,5 +29,12 @@ export const prestamoApi = {
   update: async (id, prestamoData) => {
     const response = await axiosInstance.put(`/${id}`, prestamoData);
     return response.data;
+  },
+
+  extender: async (id, montoExtendido, montoPorCuota) => {
+    const body = { montoExtendido };
+    if (montoPorCuota && montoPorCuota > 0) body.montoPorCuota = montoPorCuota;
+    const response = await axiosInstance.post(`/${id}/extender`, body);
+    return response.data;
   }
 };

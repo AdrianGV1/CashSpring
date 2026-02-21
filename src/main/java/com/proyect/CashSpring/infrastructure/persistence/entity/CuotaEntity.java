@@ -39,14 +39,23 @@ public class CuotaEntity {
     private LocalDate fechaVencimiento;
 
     @Column(name="monto_objetivo", nullable = false)
-    private Long montoObjetivo; // CRC
+    private Long montoObjetivo;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name="estado", nullable = false, length = 15)
     private EstadoCuota estado = EstadoCuota.PENDIENTE;
 
     @Column(name="fecha_cubierta")
     private LocalDate fechaCubierta;
+
+    @Builder.Default
+    @Column(name="monto_cancelado", nullable = false, columnDefinition = "bigint default 0")
+    private Long montoCancelado = 0L;
+
+    @Builder.Default
+    @Column(name="es_cuota_extendida")
+    private Boolean esCuotaExtendida = false;
 
     @CreationTimestamp
     @Column(name="created_at", nullable = false, updatable = false)

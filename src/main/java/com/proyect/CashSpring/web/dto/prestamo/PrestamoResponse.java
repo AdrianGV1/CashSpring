@@ -22,12 +22,17 @@ public class PrestamoResponse {
     private Long totalObjetivo;
     private EstadoPrestamo estado;
 
+    private Boolean esExtendido;
+    private Long montoExtendido;
+
     private List<CuotaItem> cuotas;
 
     public static class CuotaItem {
         private Integer numeroCuota;
         private LocalDate fechaVencimiento;
         private Long montoObjetivo;
+        private Long montoCancelado;
+        private Boolean esCuotaExtendida;
 
         public Integer getNumeroCuota() { return numeroCuota; }
         public void setNumeroCuota(Integer numeroCuota) { this.numeroCuota = numeroCuota; }
@@ -37,6 +42,12 @@ public class PrestamoResponse {
 
         public Long getMontoObjetivo() { return montoObjetivo; }
         public void setMontoObjetivo(Long montoObjetivo) { this.montoObjetivo = montoObjetivo; }
+
+        public Long getMontoCancelado() { return montoCancelado; }
+        public void setMontoCancelado(Long montoCancelado) { this.montoCancelado = montoCancelado; }
+
+        public Boolean getEsCuotaExtendida() { return esCuotaExtendida; }
+        public void setEsCuotaExtendida(Boolean esCuotaExtendida) { this.esCuotaExtendida = esCuotaExtendida; }
     }
 
     public Long getPrestamoId() { return prestamoId; }
@@ -65,6 +76,12 @@ public class PrestamoResponse {
 
     public EstadoPrestamo getEstado() { return estado; }
     public void setEstado(EstadoPrestamo estado) { this.estado = estado; }
+
+    public Boolean getEsExtendido() { return esExtendido; }
+    public void setEsExtendido(Boolean esExtendido) { this.esExtendido = esExtendido; }
+
+    public Long getMontoExtendido() { return montoExtendido; }
+    public void setMontoExtendido(Long montoExtendido) { this.montoExtendido = montoExtendido; }
 
     public List<CuotaItem> getCuotas() { return cuotas; }
     public void setCuotas(List<CuotaItem> cuotas) { this.cuotas = cuotas; }

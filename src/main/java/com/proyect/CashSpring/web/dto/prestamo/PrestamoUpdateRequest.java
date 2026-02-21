@@ -12,12 +12,8 @@ public class PrestamoUpdateRequest {
     private BigDecimal interesBase;
     private LocalDate fechaInicio;
     private TipoAcuerdo tipoAcuerdo;
-
-    /**
-     * SOLO para PAGO_EN_MES (Acuerdo 2):
-     * cantidad de quincenas (2 a 10).
-     */
-    private Integer cantidadQuincenas;
+    private Integer cantidadQuincenas;  // Número de quincenas (para QUINCENAS_DOBLES)
+    private Long montoPorQuincena;     // Nuevo monto por quincena en caso de extensión
 
     public Long getClienteId() { return clienteId; }
     public void setClienteId(Long clienteId) { this.clienteId = clienteId; }
@@ -36,4 +32,7 @@ public class PrestamoUpdateRequest {
 
     public Integer getCantidadQuincenas() { return cantidadQuincenas; }
     public void setCantidadQuincenas(Integer cantidadQuincenas) { this.cantidadQuincenas = cantidadQuincenas; }
+
+    public Long getMontoPorQuincena() { return montoPorQuincena; }
+    public void setMontoPorQuincena(Long montoPorQuincena) { this.montoPorQuincena = montoPorQuincena; }
 }
