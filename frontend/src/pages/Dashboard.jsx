@@ -4,6 +4,8 @@ import { clienteApi } from '../services/api';
 import { prestamoApi } from '../services/prestamoApi';
 import { cuotaApi } from '../services/cuotaApi';
 import { pagoApi } from '../services/pagoApi';
+import Loading from '../components/Loading';
+import EmptyState from '../components/EmptyState';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -94,11 +96,7 @@ const Dashboard = () => {
   };
 
   if (loading) {
-    return (
-      <div className="container">
-        <div className="loading">Cargando dashboard...</div>
-      </div>
-    );
+    return <Loading message="Cargando información del dashboard..." fullScreen={true} />;
   }
 
   return (
@@ -205,13 +203,14 @@ const Dashboard = () => {
         </div>
         <div className="card-body">
           {ultimasActividades.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">📭</div>
-              <p className="text-muted">No hay actividad reciente</p>
-            </div>
+            <EmptyState 
+              icon="📭"
+              title="Sin actividad reciente"
+              message="Los últimos pagos recibidos aparecerán aquí"
+            />
           ) : (
-            <div className="table-responsive">
-              <table className="table table-modern">
+            <div className="table-container">
+              <table className="table">
                 <thead>
                   <tr>
                     <th><span className="th-icon">📅</span> Fecha</th>

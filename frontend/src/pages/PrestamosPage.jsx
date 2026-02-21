@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { prestamoApi } from '../services/prestamoApi';
 import PrestamoCard from '../components/PrestamoCard';
+import Loading from '../components/Loading';
+import EmptyState from '../components/EmptyState';
+import { ErrorAlert } from '../components/Alert';
 
 const PrestamosPage = () => {
   const [prestamos, setPrestamos] = useState([]);
@@ -34,22 +37,19 @@ const PrestamosPage = () => {
   });
 
   if (loading) {
-    return (
-      <div className="container">
-        <div className="loading">Cargando préstamos...</div>
-      </div>
-    );
+    return <Loading message="Cargando préstamos..." fullScreen={true} />;
   }
 
   if (error) {
     return (
-      <div className="container">
-        <div className="error-banner">
-          <p>{error}</p>
-          <button onClick={loadData} className="btn btn-primary">
-            Reintentar
-          </button>
-        </div>
+      <div className="container" style={{ maxWidth: '600px', margin: '2rem auto' }}>
+        <ErrorAlert 
+          title="Error al cargar préstamos"
+          message={error}
+        />
+        <button onClick={loadData} className="btn btn-primary btn-block mt-4">
+          🔄 Reintentar
+        </button>
       </div>
     );
   }
@@ -93,16 +93,22 @@ const PrestamosPage = () => {
       </div>
 
       {prestamosFiltrados.length === 0 ? (
-        <div className="empty-state">
-          <h3>No hay préstamos {filtro !== 'TODOS' ? filtro.toLowerCase() + 's' : ''}</h3>
-          <p>Crea tu primer préstamo para comenzar</p>
-          <button 
-            onClick={() => navigate('/prestamos/nuevo')}
-            className="btn btn-primary"
-          >
-            + Crear Préstamo
-          </button>
-        </div>
+        <EmptyState
+          icon="💰"
+          title={`No hay préstamos ${filtro !== 'TODOS' ? filtro.toLowerCase() + 's' : ''}`}
+          message={filtro === 'TODOS' 
+            ? 'Aún no tienes préstamos registrados. ¡Crea tu primer préstamo para comenzar!' 
+            : `No hay préstamos en estado ${filtro.toLowerCase()}`
+          }
+          action={
+            <button 
+              onClick={() => navigate('/prestamos/nuevo')}
+              className="btn btn-primary"
+            >
+              ➕ Crear Préstamo
+            </button>
+          }
+        />
       ) : (
         <div className="cards-grid">
           {prestamosFiltrados.map(prestamo => (

@@ -2,6 +2,9 @@
 import { Link } from 'react-router-dom';
 import { clienteApi } from '../services/api';
 import ClienteCard from '../components/ClienteCard';
+import Loading from '../components/Loading';
+import EmptyState from '../components/EmptyState';
+import { ErrorAlert } from '../components/Alert';
 
 export default function ClientesPage() {
   const [clientes, setClientes] = useState([]);
@@ -34,19 +37,19 @@ export default function ClientesPage() {
   );
 
   if (loading) {
-    return (
-      <div className='text-center'>
-        <div className='spinner'></div>
-        <p className='text-gray-600 mt-4'>Cargando clientes...</p>
-      </div>
-    );
+    return <Loading message="Cargando clientes..." fullScreen={true} />;
   }
 
   if (error) {
     return (
-      <div className='alert alert-error'>
-        <p><strong>Error:</strong> {error}</p>
-        <button onClick={loadClientes} className='btn btn-primary mt-4'>Reintentar</button>
+      <div className="container" style={{ maxWidth: '600px', margin: '2rem auto' }}>
+        <ErrorAlert 
+          title="Error al cargar clientes"
+          message={error}
+        />
+        <button onClick={loadClientes} className='btn btn-primary btn-block mt-4'>
+          🔄 Reintentar
+        </button>
       </div>
     );
   }
@@ -66,14 +69,19 @@ export default function ClientesPage() {
       </div>
 
       {filteredClientes.length === 0 ? (
-        <div className='text-center py-12'>
-          <p className='text-gray-500 text-lg mb-4'>
-            {searchTerm ? 'No se encontraron clientes' : 'No hay clientes registrados'}
-          </p>
-          {!searchTerm && (
-            <Link to='/clientes/nuevo' className='btn btn-primary'>+ Crear Primer Cliente</Link>
+        <EmptyState
+          icon={searchTerm ? '🔍' : '👥'}
+          title={searchTerm ? 'No se encontraron resultados' : 'No hay clientes'}
+          message={searchTerm 
+            ? `No se encontraron clientes que coincidan con "${searchTerm}"`
+            : 'No tienes clientes registrados. ¡Crea tu primer cliente para empezar!'
+          }
+          action={!searchTerm && (
+            <Link to='/clientes/nuevo' className='btn btn-primary'>
+              ➕ Crear Primer Cliente
+            </Link>
           )}
-        </div>
+        />
       ) : (
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'>
           {filteredClientes.map(cliente => (
