@@ -26,13 +26,9 @@ export default function ClienteCard({ cliente }) {
             <a href={cliente.googleMapsUrl} target="_blank" rel="noopener noreferrer"
                className="btn btn-success text-sm">🗺️ Google Maps</a>
           )}
-          {cliente.wazeUrl && (
-            <a href={cliente.wazeUrl} target="_blank" rel="noopener noreferrer"
-               className="btn btn-primary text-sm">🚗 Waze</a>
-          )}
-          {cliente.whatsappLocationUrl && (
-            <a href={cliente.whatsappLocationUrl} target="_blank" rel="noopener noreferrer"
-               className="btn btn-success text-sm">💬 Compartir</a>
+          {cliente.appleMapsUrl && (
+            <a href={cliente.appleMapsUrl} target="_blank" rel="noopener noreferrer"
+               className="btn btn-primary text-sm">🍎 Apple Maps</a>
           )}
         </div>
       )}

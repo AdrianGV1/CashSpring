@@ -113,6 +113,8 @@ body {
 .btn-success:hover { background-color: #059669; }
 .btn-danger { background-color: #ef4444; color: white; }
 .btn-danger:hover { background-color: #dc2626; }
+.btn-sm { padding: 0.5rem 1rem; font-size: 0.875rem; }
+.btn-block { width: 100%; }
 
 .card {
   background: white;

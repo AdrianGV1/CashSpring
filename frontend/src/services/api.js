@@ -22,6 +22,7 @@ api.interceptors.response.use(
 export const clienteApi = {
   getAll: () => api.get('/api/clientes').then(r => r.data),
   getById: (id) => api.get(`/api/clientes/${id}`).then(r => r.data),
+  getDisponibles: () => api.get('/api/clientes/disponibles').then(r => r.data),
   create: (clienteData) => api.post('/api/clientes', clienteData).then(r => r.data),
   update: (id, clienteData) => api.put(`/api/clientes/${id}`, clienteData).then(r => r.data),
   delete: (id) => api.delete(`/api/clientes/${id}`).then(r => r.data)

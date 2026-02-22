@@ -234,7 +234,7 @@ const PrestamoDetailPage = () => {
             {showPagoForm ? 'Cancelar' : '+ Registrar Pago'}
           </button>
         )}
-        {prestamo.tipoAcuerdo === 'QUINCENAS_DOBLES' && !prestamo.esExtendido && (() => {
+        {prestamo.tipoAcuerdo === 'QUINCENAS_DOBLES' && !prestamo.esExtendido && !estaCompleto && (() => {
           const puedeExtender = progreso.porcentaje >= 50;
           return (
             <button

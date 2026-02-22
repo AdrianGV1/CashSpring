@@ -1,13 +1,16 @@
 ﻿import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { clienteApi } from '../services/api';
+import { prestamoApi } from '../services/prestamoApi';
 import Loading from '../components/Loading';
 
 export default function ClienteDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [cliente, setCliente] = useState(null);
+  const [prestamos, setPrestamos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPrestamos, setLoadingPrestamos] = useState(false);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -23,6 +26,7 @@ export default function ClienteDetailPage() {
 
   useEffect(() => {
     loadCliente();
+    loadPrestamos();
   }, [id]);
 
   const loadCliente = async () => {
@@ -42,6 +46,18 @@ export default function ClienteDetailPage() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPrestamos = async () => {
+    try {
+      setLoadingPrestamos(true);
+      const response = await prestamoApi.getByCliente(id);
+      setPrestamos(response);
+    } catch (err) {
+      console.error('Error al cargar préstamos:', err);
+    } finally {
+      setLoadingPrestamos(false);
     }
   };
 
@@ -187,7 +203,7 @@ export default function ClienteDetailPage() {
               {cliente.ubicacion && (
                 <div>
                   <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.75rem' }}>Ubicación</p>
-                  {(cliente.googleMapsUrl || cliente.wazeUrl || cliente.whatsappLocationUrl) ? (
+                  {(cliente.googleMapsUrl || cliente.appleMapsUrl) ? (
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                       {cliente.googleMapsUrl && (
                         <a 
@@ -199,24 +215,14 @@ export default function ClienteDetailPage() {
                           🗺️ Google Maps
                         </a>
                       )}
-                      {cliente.wazeUrl && (
+                      {cliente.appleMapsUrl && (
                         <a 
-                          href={cliente.wazeUrl} 
+                          href={cliente.appleMapsUrl} 
                           target='_blank' 
                           rel='noopener noreferrer'
                           className='btn btn-primary'
                         >
-                          🚗 Waze
-                        </a>
-                      )}
-                      {cliente.whatsappLocationUrl && (
-                        <a 
-                          href={cliente.whatsappLocationUrl} 
-                          target='_blank' 
-                          rel='noopener noreferrer'
-                          className='btn btn-success'
-                        >
-                          💬 WhatsApp
+                          🍎 Apple Maps
                         </a>
                       )}
                     </div>
@@ -344,6 +350,98 @@ export default function ClienteDetailPage() {
                 ✖️ Cancelar
               </button>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Historial de Préstamos */}
+      <div className='card' style={{ marginTop: '2rem' }}>
+        <h2 className='text-xl font-bold text-gray-800 mb-4'>📋 Historial de Préstamos</h2>
+        
+        {loadingPrestamos ? (
+          <p className='text-gray-500'>Cargando préstamos...</p>
+        ) : prestamos.length === 0 ? (
+          <p className='text-gray-500'>No hay préstamos registrados para este cliente.</p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className='data-table'>
+              <thead>
+                <tr>
+                  <th>Estado</th>
+                  <th>Fecha Solicitud</th>
+                  <th>Monto</th>
+                  <th>Cuota</th>
+                  <th>Próximo/Último Pago</th>
+                  <th style={{ textAlign: 'center' }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {prestamos.map(prestamo => {
+                  // Calcular próxima cuota o última cuota según estado
+                  const cuotaPendiente = prestamo.cuotas?.find(c => c.montoCancelado < c.montoObjetivo);
+                  const ultimaCuota = prestamo.cuotas?.length > 0 
+                    ? prestamo.cuotas[prestamo.cuotas.length - 1] 
+                    : null;
+                  
+                  const proximaFecha = cuotaPendiente?.fechaVencimiento;
+                  const ultimaFecha = ultimaCuota?.fechaVencimiento;
+                  
+                  const montoCuota = prestamo.cuotas?.length > 0 
+                    ? prestamo.cuotas[0].montoObjetivo 
+                    : 0;
+
+                  return (
+                    <tr key={prestamo.prestamoId}>
+                      <td>
+                        {prestamo.estado === 'ACTIVO' && (
+                          <span className='badge badge-success'>✓ Activo</span>
+                        )}
+                        {prestamo.estado === 'ATRASADO' && (
+                          <span className='badge' style={{ backgroundColor: '#f59e0b', color: 'white' }}>⚠ Atrasado</span>
+                        )}
+                        {prestamo.estado === 'PAGADO' && (
+                          <span className='badge badge-secondary'>✓ Pagado</span>
+                        )}
+                      </td>
+                      <td>
+                        {new Date(prestamo.fechaInicio).toLocaleDateString('es-ES')}
+                      </td>
+                      <td>
+                        <strong>₡{prestamo.montoPrestado?.toLocaleString()}</strong>
+                        <br />
+                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                          Total: ₡{prestamo.totalObjetivo?.toLocaleString()}
+                        </span>
+                      </td>
+                      <td>₡{montoCuota?.toLocaleString()}</td>
+                      <td>
+                        {prestamo.estado === 'PAGADO' ? (
+                          <span style={{ color: '#6b7280' }}>
+                            {ultimaFecha ? new Date(ultimaFecha).toLocaleDateString('es-ES') : '—'}
+                            <br />
+                            <span style={{ fontSize: '0.75rem' }}>Último pago</span>
+                          </span>
+                        ) : (
+                          <span>
+                            {proximaFecha ? new Date(proximaFecha).toLocaleDateString('es-ES') : '—'}
+                            <br />
+                            <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Próxima cuota</span>
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <Link 
+                          to={`/prestamos/${prestamo.prestamoId}`}
+                          className='btn btn-primary btn-sm'
+                        >
+                          👁️ Ver
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

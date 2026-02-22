@@ -191,36 +191,60 @@ public class PrestamoService {
 
     @Transactional
     public PrestamoResponse crearPrestamo(PrestamoCreateRequest req) {
-        // Validar campos obligatorios del cliente
-        if (req.getCedula() == null || req.getCedula().isBlank())
-            throw new IllegalArgumentException("La cédula es obligatoria.");
-        if (req.getNombre() == null || req.getNombre().isBlank())
-            throw new IllegalArgumentException("El nombre es obligatorio.");
-        if (req.getTelefono() == null || req.getTelefono().isBlank())
-            throw new IllegalArgumentException("El teléfono es obligatorio.");
-        if (req.getUbicacion() == null || req.getUbicacion().isBlank())
-            throw new IllegalArgumentException("La ubicación es obligatoria.");
+        ClienteEntity cliente;
 
-        // Verificar que la cédula no esté registrada
-        if (clienteRepo.findByCedula(req.getCedula().trim()).isPresent()) {
-            throw new IllegalArgumentException("Ya existe un cliente registrado con esa cédula.");
+        // Caso 1: Usar cliente existente
+        if (req.getClienteId() != null) {
+            cliente = clienteRepo.findById(req.getClienteId())
+                    .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado con ID: " + req.getClienteId()));
+
+            // Validar que el cliente NO tenga préstamos activos o atrasados
+            boolean tienePrestamosActivos = cliente.getPrestamos().stream()
+                    .anyMatch(prestamo -> 
+                        prestamo.getEstado() == EstadoPrestamo.ACTIVO || 
+                        prestamo.getEstado() == EstadoPrestamo.ATRASADO
+                    );
+
+            if (tienePrestamosActivos) {
+                throw new IllegalArgumentException(
+                    "El cliente ya tiene un préstamo activo o atrasado. " +
+                    "Debe liquidar todos sus préstamos antes de solicitar uno nuevo."
+                );
+            }
         }
+        // Caso 2: Crear nuevo cliente
+        else {
+            // Validar campos obligatorios del cliente
+            if (req.getCedula() == null || req.getCedula().isBlank())
+                throw new IllegalArgumentException("La cédula es obligatoria.");
+            if (req.getNombre() == null || req.getNombre().isBlank())
+                throw new IllegalArgumentException("El nombre es obligatorio.");
+            if (req.getTelefono() == null || req.getTelefono().isBlank())
+                throw new IllegalArgumentException("El teléfono es obligatorio.");
+            if (req.getUbicacion() == null || req.getUbicacion().isBlank())
+                throw new IllegalArgumentException("La ubicación es obligatoria.");
 
-        // Verificar que el teléfono no esté registrado
-        if (clienteRepo.findByTelefono(req.getTelefono().trim()).isPresent()) {
-            throw new IllegalArgumentException("Ya existe un cliente registrado con ese teléfono.");
+            // Verificar que la cédula no esté registrada
+            if (clienteRepo.findByCedula(req.getCedula().trim()).isPresent()) {
+                throw new IllegalArgumentException("Ya existe un cliente registrado con esa cédula.");
+            }
+
+            // Verificar que el teléfono no esté registrado
+            if (clienteRepo.findByTelefono(req.getTelefono().trim()).isPresent()) {
+                throw new IllegalArgumentException("Ya existe un cliente registrado con ese teléfono.");
+            }
+
+            // Crear el cliente nuevo
+            cliente = ClienteEntity.builder()
+                    .nombre(req.getNombre().trim())
+                    .telefono(req.getTelefono().trim())
+                    .cedula(req.getCedula().trim())
+                    .ubicacion(req.getUbicacion().trim())
+                    .notas(req.getNotas())
+                    .activo(true)
+                    .build();
+            cliente = clienteRepo.save(cliente);
         }
-
-        // Crear el cliente nuevo
-        ClienteEntity cliente = ClienteEntity.builder()
-                .nombre(req.getNombre().trim())
-                .telefono(req.getTelefono().trim())
-                .cedula(req.getCedula().trim())
-                .ubicacion(req.getUbicacion().trim())
-                .notas(req.getNotas())
-                .activo(true)
-                .build();
-        cliente = clienteRepo.save(cliente);
 
         // Si el campo 'interesBase' es null, asignamos el valor por defecto
         BigDecimal interes = (req.getInteresBase() == null) ? new BigDecimal("0.2000") : req.getInteresBase();
@@ -323,6 +347,28 @@ public class PrestamoService {
     public List<PrestamoResponse> listarPrestamos() {
         return prestamoRepo.findAll()
                 .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PrestamoResponse> listarPrestamosPorCliente(Long clienteId) {
+        // Obtener préstamos del cliente ordenados: ACTIVO primero, luego por fecha de creación descendente
+        List<PrestamoEntity> prestamos = prestamoRepo.findByClienteIdOrderByEstadoAscCreatedAtDesc(clienteId);
+        
+        // Ordenar manualmente: ACTIVO/ATRASADO primero, luego PAGADO
+        return prestamos.stream()
+                .sorted((p1, p2) -> {
+                    // ACTIVO y ATRASADO van primero
+                    boolean p1Activo = p1.getEstado() == EstadoPrestamo.ACTIVO || p1.getEstado() == EstadoPrestamo.ATRASADO;
+                    boolean p2Activo = p2.getEstado() == EstadoPrestamo.ACTIVO || p2.getEstado() == EstadoPrestamo.ATRASADO;
+                    
+                    if (p1Activo && !p2Activo) return -1;
+                    if (!p1Activo && p2Activo) return 1;
+                    
+                    // Si ambos son activos o ambos pagados, ordenar por fecha de creación descendente
+                    return p2.getCreatedAt().compareTo(p1.getCreatedAt());
+                })
                 .map(this::toResponse)
                 .toList();
     }

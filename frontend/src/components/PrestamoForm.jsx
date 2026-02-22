@@ -38,6 +38,7 @@ const formatMoney = (amount) =>
   }).format(amount);
 
 const INITIAL_FORM = {
+  clienteId: null,
   cedula: '',
   nombre: '',
   telefono: '',
@@ -55,6 +56,11 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
   const [verificandoCedula, setVerificandoCedula] = useState(false);
+  
+  // Nuevo estado para la selección de cliente
+  const [clienteMode, setClienteMode] = useState('nuevo'); // 'nuevo' o 'existente'
+  const [clientesDisponibles, setClientesDisponibles] = useState([]);
+  const [cargandoClientes, setCargandoClientes] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -69,7 +75,69 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
     }
   }, [initialData]);
 
+  // Cargar clientes disponibles cuando se selecciona "existente"
+  useEffect(() => {
+    if (clienteMode === 'existente') {
+      setCargandoClientes(true);
+      clienteApi.getDisponibles()
+        .then(clientes => {
+          setClientesDisponibles(clientes || []);
+        })
+        .catch(error => {
+          console.error('Error cargando clientes disponibles:', error);
+          setClientesDisponibles([]);
+        })
+        .finally(() => setCargandoClientes(false));
+    }
+  }, [clienteMode]);
+
+  const handleClienteModeChange = (mode) => {
+    setClienteMode(mode);
+    // Limpiar datos del cliente al cambiar modo
+    setFormData({
+      ...formData,
+      clienteId: null,
+      cedula: '',
+      nombre: '',
+      telefono: '',
+      ubicacion: '',
+      notas: '',
+    });
+    setErrors({});
+  };
+
+  const handleClienteExistenteSelect = (e) => {
+    const clienteId = e.target.value;
+    if (!clienteId) {
+      setFormData({
+        ...formData,
+        clienteId: null,
+        cedula: '',
+        nombre: '',
+        telefono: '',
+        ubicacion: '',
+        notas: '',
+      });
+      return;
+    }
+
+    const cliente = clientesDisponibles.find(c => c.id === Number(clienteId));
+    if (cliente) {
+      setFormData({
+        ...formData,
+        clienteId: cliente.id,
+        cedula: cliente.cedula || '',
+        nombre: cliente.nombre || '',
+        telefono: cliente.telefono || '',
+        ubicacion: cliente.ubicacion || '',
+        notas: cliente.notas || '',
+      });
+    }
+  };
+
   const handleCedulaBlur = async () => {
+    if (clienteMode === 'existente') return; // No validar si es cliente existente
+    
     const cedula = formData.cedula.trim();
     if (!cedula) return;
     setVerificandoCedula(true);
@@ -111,10 +179,18 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
 
   const validar = () => {
     const e = {};
-    if (!formData.cedula.trim()) e.cedula = 'La cedula es obligatoria.';
-    if (!formData.nombre.trim()) e.nombre = 'El nombre completo es obligatorio.';
-    if (!formData.telefono.trim()) e.telefono = 'El telefono es obligatorio.';
-    if (!formData.ubicacion.trim()) e.ubicacion = 'La ubicacion es obligatoria.';
+    
+    // Validar campos del cliente solo si es modo "nuevo"
+    if (clienteMode === 'nuevo') {
+      if (!formData.cedula.trim()) e.cedula = 'La cedula es obligatoria.';
+      if (!formData.nombre.trim()) e.nombre = 'El nombre completo es obligatorio.';
+      if (!formData.telefono.trim()) e.telefono = 'El telefono es obligatorio.';
+      if (!formData.ubicacion.trim()) e.ubicacion = 'La ubicacion es obligatoria.';
+    } else if (clienteMode === 'existente') {
+      // Validar que se haya seleccionado un cliente
+      if (!formData.clienteId) e.clienteId = 'Debe seleccionar un cliente.';
+    }
+    
     if (!formData.montoPrestado || Number(formData.montoPrestado) <= 0)
       e.montoPrestado = 'El monto prestado es obligatorio y debe ser mayor a 0.';
     if (!formData.fechaInicio) e.fechaInicio = 'La fecha de inicio es obligatoria.';
@@ -144,16 +220,23 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
     }
 
     const dataToSend = {
-      cedula: formData.cedula.trim(),
-      nombre: formData.nombre.trim(),
-      telefono: formData.telefono.trim(),
-      ubicacion: formData.ubicacion.trim(),
-      notas: formData.notas.trim() || null,
       montoPrestado: Number(formData.montoPrestado),
       interesBase: formData.interesBase,
       fechaInicio: formData.fechaInicio,
       tipoAcuerdo: formData.tipoAcuerdo,
     };
+
+    // Si es cliente existente, solo enviar el clienteId
+    if (clienteMode === 'existente' && formData.clienteId) {
+      dataToSend.clienteId = formData.clienteId;
+    } else {
+      // Si es cliente nuevo, enviar todos los datos del cliente
+      dataToSend.cedula = formData.cedula.trim();
+      dataToSend.nombre = formData.nombre.trim();
+      dataToSend.telefono = formData.telefono.trim();
+      dataToSend.ubicacion = formData.ubicacion.trim();
+      dataToSend.notas = formData.notas.trim() || null;
+    }
 
     if (formData.tipoAcuerdo === 'PAGO_EN_MES') {
       dataToSend.cantidadQuincenas = Number(formData.cantidadQuincenas);
@@ -182,74 +265,215 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
           Datos del Cliente
         </h3>
 
-        <div className="form-group">
-          <label>Cedula *</label>
-          <input
-            type="text"
-            name="cedula"
-            value={formData.cedula}
-            onChange={handleChange}
-            onBlur={handleCedulaBlur}
-            placeholder="Ej: 1-2345-6789"
-            style={inputStyle('cedula')}
-            disabled={!!initialData}
-          />
-          {errors.cedula && <small style={{ color: '#dc3545' }}>{errors.cedula}</small>}
-          {verificandoCedula && <small style={{ color: '#6c757d' }}>Verificando cedula...</small>}
-        </div>
-
-        <div className="form-row">
-          <div className="form-group">
-            <label>Nombre Completo *</label>
-            <input
-              type="text"
-              name="nombre"
-              value={formData.nombre}
-              onChange={handleChange}
-              placeholder="Ej: Juan Perez Solano"
-              style={inputStyle('nombre')}
-            />
-            {errors.nombre && <small style={{ color: '#dc3545' }}>{errors.nombre}</small>}
+        {/* Selector de Modo de Cliente */}
+        <div style={{ 
+          marginBottom: '1.5rem', 
+          padding: '0.75rem', 
+          background: '#fff', 
+          borderRadius: '8px',
+          border: '2px solid #e3f2fd'
+        }}>
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '0.5rem', 
+            fontWeight: 600, 
+            color: '#1976d2',
+            fontSize: '0.9rem'
+          }}>
+            Tipo de Cliente
+          </label>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <label style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              cursor: 'pointer',
+              padding: '0.5rem 1rem',
+              background: clienteMode === 'nuevo' ? '#1976d2' : '#f5f5f5',
+              color: clienteMode === 'nuevo' ? '#fff' : '#555',
+              borderRadius: '6px',
+              fontWeight: clienteMode === 'nuevo' ? 600 : 400,
+              transition: 'all 0.2s'
+            }}>
+              <input
+                type="radio"
+                name="clienteMode"
+                value="nuevo"
+                checked={clienteMode === 'nuevo'}
+                onChange={() => handleClienteModeChange('nuevo')}
+                style={{ marginRight: '0.5rem' }}
+              />
+              Nuevo Cliente
+            </label>
+            <label style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              cursor: 'pointer',
+              padding: '0.5rem 1rem',
+              background: clienteMode === 'existente' ? '#1976d2' : '#f5f5f5',
+              color: clienteMode === 'existente' ? '#fff' : '#555',
+              borderRadius: '6px',
+              fontWeight: clienteMode === 'existente' ? 600 : 400,
+              transition: 'all 0.2s'
+            }}>
+              <input
+                type="radio"
+                name="clienteMode"
+                value="existente"
+                checked={clienteMode === 'existente'}
+                onChange={() => handleClienteModeChange('existente')}
+                style={{ marginRight: '0.5rem' }}
+              />
+              Cliente Existente
+            </label>
           </div>
+        </div>
+
+        {/* Selector de Cliente Existente */}
+        {clienteMode === 'existente' && (
           <div className="form-group">
-            <label>Telefono *</label>
-            <input
-              type="text"
-              name="telefono"
-              value={formData.telefono}
-              onChange={handleChange}
-              placeholder="Ej: 8888-8888"
-              style={inputStyle('telefono')}
-            />
-            {errors.telefono && <small style={{ color: '#dc3545' }}>{errors.telefono}</small>}
+            <label>Seleccionar Cliente *</label>
+            {cargandoClientes ? (
+              <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+                Cargando clientes disponibles...
+              </div>
+            ) : clientesDisponibles.length === 0 ? (
+              <div style={{ 
+                padding: '1rem', 
+                background: '#fff3cd', 
+                border: '1px solid #ffc107',
+                borderRadius: '6px',
+                color: '#856404'
+              }}>
+                No hay clientes disponibles sin préstamos activos.
+              </div>
+            ) : (
+              <>
+                <select
+                  value={formData.clienteId || ''}
+                  onChange={handleClienteExistenteSelect}
+                  style={{
+                    ...inputStyle('clienteId'),
+                    padding: '0.5rem',
+                    fontSize: '1rem',
+                    borderRadius: '6px',
+                    border: '1px solid #ced4da'
+                  }}
+                >
+                  <option value="">-- Selecciona un cliente --</option>
+                  {clientesDisponibles.map(cliente => (
+                    <option key={cliente.id} value={cliente.id}>
+                      {cliente.nombre} - {cliente.cedula}
+                    </option>
+                  ))}
+                </select>
+                {errors.clienteId && <small style={{ color: '#dc3545' }}>{errors.clienteId}</small>}
+              </>
+            )}
           </div>
-        </div>
+        )}
 
-        <div className="form-group">
-          <label>Ubicacion *</label>
-          <input
-            type="text"
-            name="ubicacion"
-            value={formData.ubicacion}
-            onChange={handleChange}
-            placeholder="Ej: 9.9325,-84.0781 o enlace de Google Maps"
-            style={inputStyle('ubicacion')}
-          />
-          {errors.ubicacion && <small style={{ color: '#dc3545' }}>{errors.ubicacion}</small>}
-          <small style={{ color: '#6c757d' }}>Coordenadas decimales, DMS o enlace de Maps.</small>
-        </div>
+        {/* Formulario para Nuevo Cliente */}
+        {clienteMode === 'nuevo' && (
+          <>
+            <div className="form-group">
+              <label>Cedula *</label>
+              <input
+                type="text"
+                name="cedula"
+                value={formData.cedula}
+                onChange={handleChange}
+                onBlur={handleCedulaBlur}
+                placeholder="Ej: 1-2345-6789"
+                style={inputStyle('cedula')}
+                disabled={!!initialData}
+              />
+              {errors.cedula && <small style={{ color: '#dc3545' }}>{errors.cedula}</small>}
+              {verificandoCedula && <small style={{ color: '#6c757d' }}>Verificando cedula...</small>}
+            </div>
 
-        <div className="form-group">
-          <label>Notas <span style={{ color: '#6c757d', fontWeight: 400 }}>(opcional)</span></label>
-          <textarea
-            name="notas"
-            value={formData.notas}
-            onChange={handleChange}
-            placeholder="Observaciones adicionales sobre el cliente..."
-            rows={2}
-            style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
-          />
-        </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Nombre Completo *</label>
+                <input
+                  type="text"
+                  name="nombre"
+                  value={formData.nombre}
+                  onChange={handleChange}
+                  placeholder="Ej: Juan Perez Solano"
+                  style={inputStyle('nombre')}
+                />
+                {errors.nombre && <small style={{ color: '#dc3545' }}>{errors.nombre}</small>}
+              </div>
+
+              <div className="form-group">
+                <label>Telefono *</label>
+                <input
+                  type="text"
+                  name="telefono"
+                  value={formData.telefono}
+                  onChange={handleChange}
+                  placeholder="Ej: 8888-9999"
+                  style={inputStyle('telefono')}
+                />
+                {errors.telefono && <small style={{ color: '#dc3545' }}>{errors.telefono}</small>}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Ubicacion *</label>
+              <input
+                type="text"
+                name="ubicacion"
+                value={formData.ubicacion}
+                onChange={handleChange}
+                placeholder="Coordenadas o direccion"
+                style={inputStyle('ubicacion')}
+              />
+              {errors.ubicacion && <small style={{ color: '#dc3545' }}>{errors.ubicacion}</small>}
+              <small style={{ color: '#6c757d' }}>
+                Puedes pegar coordenadas de Google Maps o una direccion descriptiva.
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label>Notas</label>
+              <textarea
+                name="notas"
+                value={formData.notas}
+                onChange={handleChange}
+                rows="3"
+                placeholder="Observaciones adicionales..."
+                style={{ resize: 'vertical' }}
+              />
+            </div>
+          </>
+        )}
+
+        {/* Mostrar datos del cliente seleccionado (solo lectura) */}
+        {clienteMode === 'existente' && formData.clienteId && (
+          <div style={{ 
+            marginTop: '1rem', 
+            padding: '1rem', 
+            background: '#e8f5e9', 
+            borderRadius: '8px',
+            border: '1px solid #81c784'
+          }}>
+            <h4 style={{ margin: '0 0 0.75rem 0', color: '#2e7d32', fontSize: '0.9rem' }}>
+              Datos del Cliente Seleccionado
+            </h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.9rem' }}>
+              <div><strong>Nombre:</strong> {formData.nombre}</div>
+              <div><strong>Cédula:</strong> {formData.cedula}</div>
+              <div><strong>Teléfono:</strong> {formData.telefono}</div>
+              <div><strong>Ubicación:</strong> {formData.ubicacion}</div>
+              {formData.notas && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <strong>Notas:</strong> {formData.notas}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* SECCION: DATOS DEL PRESTAMO */}

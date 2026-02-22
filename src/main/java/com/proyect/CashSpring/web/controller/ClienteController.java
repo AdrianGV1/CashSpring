@@ -31,6 +31,11 @@ public class ClienteController {
         return clienteService.findAll();
     }
 
+    @GetMapping("/disponibles")
+    public List<ClienteResponse> findDisponibles() {
+        return clienteService.findClientesDisponiblesParaPrestamo();
+    }
+
     @GetMapping("/{id}")
     public ClienteResponse findById(@PathVariable Long id) {
         return clienteService.findById(id);

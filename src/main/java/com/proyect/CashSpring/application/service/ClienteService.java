@@ -44,6 +44,21 @@ public class ClienteService {
     }
 
     @Transactional(readOnly = true)
+    public List<ClienteResponse> findClientesDisponiblesParaPrestamo() {
+        // Devuelve clientes activos que NO tienen préstamos activos o atrasados
+        return clienteRepo.findAll().stream()
+                .filter(ClienteEntity::isActivo)
+                .filter(cliente -> cliente.getPrestamos().stream()
+                        .noneMatch(prestamo -> 
+                            prestamo.getEstado() == EstadoPrestamo.ACTIVO || 
+                            prestamo.getEstado() == EstadoPrestamo.ATRASADO
+                        )
+                )
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public ClienteResponse findById(Long id) {
         return toResponse(findEntityOrThrow(id));
     }
@@ -101,16 +116,14 @@ public class ClienteService {
         
         // Generar URLs de navegación si hay coordenadas
         String googleMapsUrl = null;
-        String wazeUrl = null;
-        String whatsappLocationUrl = null;
+        String appleMapsUrl = null;
         
         if (coords != null) {
             googleMapsUrl = com.proyect.CashSpring.domain.util.MapUrlGenerator.generateGoogleMapsUrl(coords.lat(), coords.lng());
-            wazeUrl = com.proyect.CashSpring.domain.util.MapUrlGenerator.generateWazeUrl(coords.lat(), coords.lng());
-            whatsappLocationUrl = com.proyect.CashSpring.domain.util.MapUrlGenerator.generateWhatsAppLocationUrl(coords.lat(), coords.lng());
+            appleMapsUrl = com.proyect.CashSpring.domain.util.MapUrlGenerator.generateAppleMapsUrl(coords.lat(), coords.lng());
             System.out.println("✅ URLS GENERADAS:");
             System.out.println("   Google Maps: " + googleMapsUrl);
-            System.out.println("   Waze: " + wazeUrl);
+            System.out.println("   Apple Maps: " + appleMapsUrl);
         } else {
             System.out.println("❌ NO SE PUDIERON EXTRAER COORDENADAS");
         }
@@ -128,8 +141,7 @@ public class ClienteService {
                 coords != null ? coords.lat() : null,
                 coords != null ? coords.lng() : null,
                 googleMapsUrl,
-                wazeUrl,
-                whatsappLocationUrl
+                appleMapsUrl
         );
     }
 

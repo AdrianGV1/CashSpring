@@ -21,6 +21,11 @@ export const prestamoApi = {
     return response.data;
   },
 
+  getByCliente: async (clienteId) => {
+    const response = await axiosInstance.get(`/cliente/${clienteId}`);
+    return response.data;
+  },
+
   create: async (prestamoData) => {
     const response = await axiosInstance.post('', prestamoData);
     return response.data;

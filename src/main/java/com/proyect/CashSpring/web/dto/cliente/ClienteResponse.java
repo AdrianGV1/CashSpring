@@ -17,6 +17,5 @@ public record ClienteResponse(
         Double longitud,
         // URLs de navegación generadas
         String googleMapsUrl,
-        String wazeUrl,
-        String whatsappLocationUrl
+        String appleMapsUrl
 ) {}
