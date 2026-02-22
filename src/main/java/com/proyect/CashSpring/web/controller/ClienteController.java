@@ -40,4 +40,10 @@ public class ClienteController {
     public ClienteResponse update(@PathVariable Long id, @Valid @RequestBody ClienteUpdateRequest req) {
         return clienteService.update(id, req);
     }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        clienteService.delete(id);
+    }
 }

@@ -45,7 +45,7 @@ public class ClienteEntity {
     @Column(name="activo", nullable = false)
     private boolean activo = true;
 
-    @OneToMany(mappedBy = "cliente", fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<PrestamoEntity> prestamos = new ArrayList<>();
 

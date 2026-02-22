@@ -1,10 +1,12 @@
 package com.proyect.CashSpring.application.service;
 
+import com.proyect.CashSpring.domain.enums.EstadoPrestamo;
 import com.proyect.CashSpring.infrastructure.persistence.entity.ClienteEntity;
 import com.proyect.CashSpring.infrastructure.persistence.jpa.ClienteJpaRepository;
 import com.proyect.CashSpring.web.dto.cliente.ClienteCreateRequest;
 import com.proyect.CashSpring.web.dto.cliente.ClienteResponse;
 import com.proyect.CashSpring.web.dto.cliente.ClienteUpdateRequest;
+import com.proyect.CashSpring.web.exception.BusinessException;
 import com.proyect.CashSpring.web.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +62,29 @@ public class ClienteService {
 
         ClienteEntity saved = clienteRepo.save(entity);
         return toResponse(saved);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        ClienteEntity entity = findEntityOrThrow(id);
+        
+        // Validar que no tenga préstamos activos o atrasados (que deba dinero)
+        boolean tienePrestamosActivos = entity.getPrestamos().stream()
+                .anyMatch(prestamo -> 
+                    prestamo.getEstado() == EstadoPrestamo.ACTIVO || 
+                    prestamo.getEstado() == EstadoPrestamo.ATRASADO
+                );
+        
+        if (tienePrestamosActivos) {
+            throw new BusinessException(
+                "No se puede eliminar el cliente porque tiene préstamos activos o atrasados. " +
+                "Debe liquidar todos sus préstamos antes de eliminar el cliente."
+            );
+        }
+        
+        // Si llega aquí, todos los préstamos están PAGADOS o no tiene préstamos
+        // Eliminar el cliente (sus préstamos, cuotas y pagos se eliminan en cascada por JPA)
+        clienteRepo.delete(entity);
     }
 
     private ClienteEntity findEntityOrThrow(Long id) {

@@ -79,6 +79,34 @@ export default function ClienteDetailPage() {
     }
   };
 
+  const handleDelete = async () => {
+    const confirmDelete = window.confirm(
+      `¿Estás seguro de que deseas eliminar al cliente "${cliente.nombre}"?\n\n` +
+      '⚠️ Esta acción es irreversible y eliminará:\n' +
+      '• El cliente\n' +
+      '• Todos sus préstamos pagados\n' +
+      '• Todas las cuotas asociadas\n' +
+      '• Todos los pagos registrados\n\n' +
+      'Solo se puede eliminar si NO tiene préstamos activos o atrasados.'
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      setSaving(true);
+      await clienteApi.delete(id);
+      alert('✅ Cliente eliminado exitosamente');
+      navigate('/clientes');
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 
+        'Error al eliminar el cliente. Verifica que no tenga préstamos activos.';
+      alert(`❌ ${errorMessage}`);
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -111,9 +139,18 @@ export default function ClienteDetailPage() {
             {isEditing ? '✏️ Editando Cliente' : cliente.nombre}
           </h2>
           {!isEditing && (
-            <button onClick={handleEdit} className='btn btn-primary'>
-              ✏️ Editar
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button onClick={handleEdit} className='btn btn-primary'>
+                ✏️ Editar
+              </button>
+              <button 
+                onClick={handleDelete} 
+                className='btn btn-danger'
+                disabled={saving}
+              >
+                🗑️ Eliminar
+              </button>
+            </div>
           )}
         </div>
 
