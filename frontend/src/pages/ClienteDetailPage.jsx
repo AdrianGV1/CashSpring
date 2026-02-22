@@ -2,6 +2,7 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { clienteApi } from '../services/api';
 import { prestamoApi } from '../services/prestamoApi';
+import { reporteApi } from '../services/reporteApi';
 import { isAdmin } from '../services/authHelper';
 import Loading from '../components/Loading';
 
@@ -15,6 +16,7 @@ export default function ClienteDetailPage() {
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   // Form data for editing
   const [formData, setFormData] = useState({
@@ -124,6 +126,19 @@ export default function ClienteDetailPage() {
     }
   };
 
+  const handleExportPdf = async () => {
+    try {
+      setExportingPdf(true);
+      await reporteApi.descargarReporteCliente(id);
+      alert('✅ PDF exportado exitosamente');
+    } catch (err) {
+      alert('❌ Error al exportar PDF');
+      console.error(err);
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -157,6 +172,13 @@ export default function ClienteDetailPage() {
           </h2>
           {!isEditing && (
             <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button 
+                onClick={handleExportPdf} 
+                className='btn btn-secondary'
+                disabled={exportingPdf}
+              >
+                {exportingPdf ? '⏳ Exportando...' : '📄 Exportar PDF'}
+              </button>
               <button onClick={handleEdit} className='btn btn-primary'>
                 ✏️ Editar
               </button>

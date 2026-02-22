@@ -4,6 +4,7 @@ import { prestamoApi } from '../services/prestamoApi';
 import { cuotaApi } from '../services/cuotaApi';
 import { pagoApi } from '../services/pagoApi';
 import { clienteApi } from '../services/api';
+import { reporteApi } from '../services/reporteApi';
 import { isSupervisor, isAdmin } from '../services/authHelper';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 
@@ -35,6 +36,7 @@ const PrestamoDetailPage = () => {
   const [liquidarLoading, setLiquidarLoading] = useState(false);
   const [liquidarError, setLiquidarError] = useState(null);
   const [fechaLiquidacion, setFechaLiquidacion] = useState(new Date().toISOString().split('T')[0]);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -151,6 +153,19 @@ const PrestamoDetailPage = () => {
       alert('❌ Error al revertir el pago: ' + (err.response?.data?.message || err.message));
     } finally {
       setReverting(null);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      setExportingPdf(true);
+      await reporteApi.descargarReportePrestamo(id);
+      alert('✅ PDF exportado exitosamente');
+    } catch (err) {
+      alert('❌ Error al exportar PDF');
+      console.error(err);
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -308,14 +323,38 @@ const PrestamoDetailPage = () => {
           )}
         </div>
 
-        {!estaCompleto && (
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button 
-            onClick={() => setShowPagoForm(!showPagoForm)}
-            className="btn btn-primary"
+            onClick={handleExportPdf}
+            className="btn btn-secondary"
+            disabled={exportingPdf}
+            style={{
+              padding: '0.5rem 1rem',
+              border: 'none',
+              borderRadius: '6px',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              cursor: exportingPdf ? 'not-allowed' : 'pointer',
+              backgroundColor: exportingPdf ? '#cccccc' : '#6c757d',
+              color: '#fff',
+              transition: 'background-color 0.2s'
+            }}
           >
-            {showPagoForm ? 'Cancelar' : '+ Registrar Pago'}
+            {exportingPdf ? '⏳ Exportando...' : '📄 Exportar PDF'}
           </button>
-        )}
+          
+          {!estaCompleto && (
+            <button 
+              onClick={() => setShowPagoForm(!showPagoForm)}
+              className="btn btn-primary"
+            >
+              {showPagoForm ? 'Cancelar' : '+ Registrar Pago'}
+            </button>
+          )}
+        </div>
+      </div>
+      
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
         {!estaCompleto && (
           <button
             onClick={() => {

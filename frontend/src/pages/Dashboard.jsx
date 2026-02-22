@@ -4,6 +4,7 @@ import { clienteApi } from '../services/api';
 import { prestamoApi } from '../services/prestamoApi';
 import { cuotaApi } from '../services/cuotaApi';
 import { pagoApi } from '../services/pagoApi';
+import { reporteApi } from '../services/reporteApi';
 import { isAdmin } from '../services/authHelper';
 import Loading from '../components/Loading';
 import EmptyState from '../components/EmptyState';
@@ -24,6 +25,7 @@ const Dashboard = () => {
   const [solicitudesPendientes, setSolicitudesPendientes] = useState([]);
   const [alert, setAlert] = useState(null);
   const [procesando, setProcesando] = useState(null);
+  const [exportingPdf, setExportingPdf] = useState(null); // Guarda qué reporte se está exportando
   const navigate = useNavigate();
   const userIsAdmin = isAdmin();
 
@@ -137,6 +139,34 @@ const Dashboard = () => {
       setAlert({ type: 'error', message: 'Error al rechazar el pago: ' + (error.response?.data?.message || error.message) });
     } finally {
       setProcesando(null);
+    }
+  };
+
+  // Funciones para exportar PDFs
+  const handleExportReporte = async (tipoReporte, dias = null) => {
+    try {
+      setExportingPdf(tipoReporte);
+      
+      switch (tipoReporte) {
+        case 'cuotasProximas':
+          await reporteApi.descargarReporteCuotasProximas(dias);
+          break;
+        case 'prestamosActivos':
+          await reporteApi.descargarReportePrestamosActivos();
+          break;
+        case 'prestamosAtrasados':
+          await reporteApi.descargarReportePrestamosAtrasados();
+          break;
+        default:
+          throw new Error('Tipo de reporte no válido');
+      }
+      
+      setAlert({ type: 'success', message: 'PDF exportado exitosamente' });
+    } catch (err) {
+      console.error('Error al exportar PDF:', err);
+      setAlert({ type: 'error', message: 'Error al exportar PDF' });
+    } finally {
+      setExportingPdf(null);
     }
   };
 
@@ -268,7 +298,7 @@ const Dashboard = () => {
       {userIsAdmin && (
         <div className="card mt-4">
           <div className="card-header">
-            <h3><span className="card-title-icon">⏳</span> Solicitudes de Pago Pendientes</h3>
+            <h3><span className="card-title-icon">💬</span> Solicitudes de Pago Pendientes</h3>
           </div>
           <div className="card-body">
             {solicitudesPendientes.length === 0 ? (
@@ -327,6 +357,111 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Sección de Reportes en PDF */}
+      <div className="card mt-4">
+        <div className="card-header">
+          <h3><span className="card-title-icon">📊</span> Reportes y Exportaciones</h3>
+        </div>
+        <div className="card-body">
+          <p style={{ marginBottom: '1.5rem', color: '#6c757d' }}>
+            Genera y descarga reportes en PDF con información detallada del negocio
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            
+            {/* Cuotas próximas a vencer */}
+            <div style={{ 
+              border: '1px solid #e0e0e0', 
+              borderRadius: '8px', 
+              padding: '1.25rem',
+              backgroundColor: '#f8f9fa'
+            }}>
+              <h4 style={{ marginBottom: '0.75rem', fontSize: '1rem', fontWeight: '600' }}>
+                📅 Cuotas Próximas
+              </h4>
+              <p style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '1rem' }}>
+                Reporte de cuotas próximas a vencer
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => handleExportReporte('cuotasProximas', 7)}
+                  className="btn btn-secondary btn-sm"
+                  disabled={exportingPdf === 'cuotasProximas' ? exportingPdf : false}
+                  style={{ flex: '1', minWidth: '80px' }}
+                >
+                  {exportingPdf === 'cuotasProximas' ? '⏳...' : '7 días'}
+                </button>
+                <button
+                  onClick={() => handleExportReporte('cuotasProximas', 15)}
+                  className="btn btn-secondary btn-sm"
+                  disabled={exportingPdf === 'cuotasProximas'}
+                  style={{ flex: '1', minWidth: '80px' }}
+                >
+                  15 días
+                </button>
+                <button
+                  onClick={() => handleExportReporte('cuotasProximas', 30)}
+                  className="btn btn-secondary btn-sm"
+                  disabled={exportingPdf === 'cuotasProximas'}
+                  style={{ flex: '1', minWidth: '80px' }}
+                >
+                  30 días
+                </button>
+              </div>
+            </div>
+
+            {/* Préstamos activos */}
+            <div style={{ 
+              border: '1px solid #e0e0e0', 
+              borderRadius: '8px', 
+              padding: '1.25rem',
+              backgroundColor: '#f8f9fa'
+            }}>
+              <h4 style={{ marginBottom: '0.75rem', fontSize: '1rem', fontWeight: '600' }}>
+                💰 Préstamos Activos
+              </h4>
+              <p style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '1rem' }}>
+                Listado completo de préstamos activos con resumen financiero
+              </p>
+              <button
+                onClick={() => handleExportReporte('prestamosActivos')}
+                className="btn btn-primary btn-sm"
+                disabled={exportingPdf === 'prestamosActivos'}
+                style={{ width: '100%' }}
+              >
+                {exportingPdf === 'prestamosActivos' ? '⏳ Exportando...' : '📄 Exportar PDF'}
+              </button>
+            </div>
+
+            {/* Préstamos atrasados */}
+            <div style={{ 
+              border: '1px solid #e0e0e0', 
+              borderRadius: '8px', 
+              padding: '1.25rem',
+              backgroundColor: '#f8f9fa'
+            }}>
+              <h4 style={{ marginBottom: '0.75rem', fontSize: '1rem', fontWeight: '600' }}>
+                ⚠️ Préstamos Atrasados
+              </h4>
+              <p style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '1rem' }}>
+                Reporte de préstamos con pagos vencidos
+              </p>
+              <button
+                onClick={() => handleExportReporte('prestamosAtrasados')}
+                className="btn btn-danger btn-sm"
+                disabled={exportingPdf === 'prestamosAtrasados'}
+                style={{ width: '100%' }}
+              >
+                {exportingPdf === 'prestamosAtrasados' ? '⏳ Exportando...' : '📄 Exportar PDF'}
+              </button>
+            </div>
+            
+          </div>
+          <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#6c757d', fontStyle: 'italic' }}>
+            💡 Consejo: También puedes exportar información detallada de clientes y préstamos individuales desde sus páginas de detalle
+          </p>
+        </div>
+      </div>
     </div>
   );
 };
