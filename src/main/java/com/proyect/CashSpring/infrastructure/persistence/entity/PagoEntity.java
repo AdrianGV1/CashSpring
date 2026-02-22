@@ -1,5 +1,6 @@
 package com.proyect.CashSpring.infrastructure.persistence.entity;
 
+import com.proyect.CashSpring.domain.enums.EstadoAprobacionPago;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -31,6 +32,11 @@ public class PagoEntity {
 
     @Column(name="notas", columnDefinition = "TEXT")
     private String notas;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name="estado_aprobacion", nullable = false)
+    @Builder.Default
+    private EstadoAprobacionPago estadoAprobacion = EstadoAprobacionPago.APROBADO;
 
     @CreationTimestamp
     @Column(name="created_at", nullable = false, updatable = false)

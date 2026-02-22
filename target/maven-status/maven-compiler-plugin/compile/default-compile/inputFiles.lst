@@ -3,11 +3,13 @@ C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashS
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\application\service\PagoService.java
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\application\service\PrestamoService.java
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\CashSpringApplication.java
+C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\domain\enums\EstadoAprobacionPago.java
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\domain\enums\EstadoCuota.java
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\domain\enums\EstadoPrestamo.java
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\domain\enums\TipoAcuerdo.java
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\domain\util\CoordinateConverter.java
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\domain\util\MapUrlGenerator.java
+C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\DatabaseMigration.java
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\entity\ClienteEntity.java
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\entity\CuotaEntity.java
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\entity\PagoEntity.java
@@ -37,5 +39,6 @@ C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashS
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\prestamo\PrestamoResponse.java
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\prestamo\PrestamoUpdateRequest.java
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\exception\ApiExceptionHandler.java
+C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\exception\BusinessException.java
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\exception\NotFoundException.java
 C:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\mapper\PrestamoMapper.java

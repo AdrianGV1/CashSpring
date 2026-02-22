@@ -32,7 +32,7 @@ function Navigation() {
         
         <div className="nav-links">
           <Link to="/" className={`nav-link ${isActive('/') && location.pathname === '/' ? 'active' : ''}`}>
-            Dashboard
+            Inicio
           </Link>
           <Link to="/clientes" className={`nav-link ${isActive('/clientes') ? 'active' : ''}`}>
             Clientes

@@ -1,5 +1,6 @@
 package com.proyect.CashSpring.application.service;
 
+import com.proyect.CashSpring.domain.enums.EstadoAprobacionPago;
 import com.proyect.CashSpring.domain.enums.EstadoCuota;
 import com.proyect.CashSpring.domain.enums.EstadoPrestamo;
 import com.proyect.CashSpring.infrastructure.persistence.entity.CuotaEntity;
@@ -10,6 +11,8 @@ import com.proyect.CashSpring.infrastructure.persistence.jpa.PrestamoJpaReposito
 import com.proyect.CashSpring.web.dto.pago.PagoCreateRequest;
 import com.proyect.CashSpring.web.dto.pago.PagoResponse;
 import com.proyect.CashSpring.web.dto.pago.PagoUpdateRequest;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +29,12 @@ public class PagoService {
     public PagoService(PagoJpaRepository pagoRepo, PrestamoJpaRepository prestamoRepo) {
         this.pagoRepo = pagoRepo;
         this.prestamoRepo = prestamoRepo;
+    }
+
+    private boolean isAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }
 
     @Transactional(readOnly = true)
@@ -52,6 +61,65 @@ public class PagoService {
 
         LocalDate fechaPago = req.getFechaPago() != null ? req.getFechaPago() : LocalDate.now();
 
+        // Determinar el estado de aprobación según el rol del usuario
+        EstadoAprobacionPago estadoAprobacion = isAdmin() 
+                ? EstadoAprobacionPago.APROBADO 
+                : EstadoAprobacionPago.EN_ESPERA;
+
+        // Crear el pago
+        PagoEntity pago = PagoEntity.builder()
+                .prestamo(prestamo)
+                .fechaPago(fechaPago)
+                .monto(req.getMonto())
+                .notas(req.getNotas())
+                .estadoAprobacion(estadoAprobacion)
+                .build();
+
+        PagoEntity guardado = pagoRepo.save(pago);
+
+        // Solo procesar cuotas si es ADMIN (estado APROBADO)
+        if (estadoAprobacion == EstadoAprobacionPago.APROBADO) {
+            procesarCuotasConPago(prestamo, req.getMonto(), fechaPago);
+            prestamoRepo.save(prestamo);
+        }
+
+        return toResponse(guardado);
+    }
+
+    @Transactional
+    public PagoResponse aprobarPago(Long pagoId) {
+        PagoEntity pago = pagoRepo.findById(pagoId)
+                .orElseThrow(() -> new IllegalArgumentException("Pago no encontrado: " + pagoId));
+
+        if (pago.getEstadoAprobacion() != EstadoAprobacionPago.EN_ESPERA) {
+            throw new IllegalArgumentException("El pago ya fue procesado");
+        }
+
+        // Cambiar estado a APROBADO
+        pago.setEstadoAprobacion(EstadoAprobacionPago.APROBADO);
+
+        // Procesar las cuotas del préstamo
+        PrestamoEntity prestamo = pago.getPrestamo();
+        procesarCuotasConPago(prestamo, pago.getMonto(), pago.getFechaPago());
+        prestamoRepo.save(prestamo);
+
+        return toResponse(pagoRepo.save(pago));
+    }
+
+    @Transactional
+    public void rechazarPago(Long pagoId) {
+        PagoEntity pago = pagoRepo.findById(pagoId)
+                .orElseThrow(() -> new IllegalArgumentException("Pago no encontrado: " + pagoId));
+
+        if (pago.getEstadoAprobacion() != EstadoAprobacionPago.EN_ESPERA) {
+            throw new IllegalArgumentException("El pago ya fue procesado");
+        }
+
+        // Simplemente eliminar el pago rechazado
+        pagoRepo.delete(pago);
+    }
+
+    private void procesarCuotasConPago(PrestamoEntity prestamo, Long montoPago, LocalDate fechaPago) {
         // Cuotas pendientes ordenadas de más antigua (menor número) a más reciente
         List<CuotaEntity> pendientesAsc = prestamo.getCuotas().stream()
                 .filter(c -> c.getEstado() == EstadoCuota.PENDIENTE)
@@ -59,17 +127,10 @@ public class PagoService {
                 .collect(java.util.stream.Collectors.toList());
 
         if (pendientesAsc.isEmpty()) {
-            prestamoRepo.save(prestamo);
-            PagoEntity pago = PagoEntity.builder()
-                    .prestamo(prestamo)
-                    .fechaPago(fechaPago)
-                    .monto(req.getMonto())
-                    .notas(req.getNotas())
-                    .build();
-            return toResponse(pagoRepo.save(pago));
+            return;
         }
 
-        long restante = req.getMonto();
+        long restante = montoPago;
 
         // Paso 1: cancelar UNA SOLA cuota de la más cercana (menor número)
         CuotaEntity masProxima = pendientesAsc.get(0);
@@ -115,19 +176,15 @@ public class PagoService {
         if (todasCubiertas) {
             prestamo.setEstado(EstadoPrestamo.PAGADO);
         }
+    }
 
-        // Guardar cambios en cuotas (cascade desde prestamo)
-        prestamoRepo.save(prestamo);
-
-        PagoEntity pago = PagoEntity.builder()
-                .prestamo(prestamo)
-                .fechaPago(fechaPago)
-                .monto(req.getMonto())
-                .notas(req.getNotas())
-                .build();
-
-        PagoEntity guardado = pagoRepo.save(pago);
-        return toResponse(guardado);
+    @Transactional(readOnly = true)
+    public List<PagoResponse> listarSolicitudesPendientes() {
+        return pagoRepo.findAll()
+                .stream()
+                .filter(p -> p.getEstadoAprobacion() == EstadoAprobacionPago.EN_ESPERA)
+                .map(this::toResponse)
+                .toList();
     }
 
     @Transactional
@@ -154,9 +211,12 @@ public class PagoService {
         PagoResponse r = new PagoResponse();
         r.setPagoId(p.getId());
         r.setPrestamoId(p.getPrestamo().getId());
+        r.setClienteNombre(p.getPrestamo().getCliente().getNombre());
+        r.setClienteCedula(p.getPrestamo().getCliente().getCedula());
         r.setFechaPago(p.getFechaPago());
         r.setMonto(p.getMonto());
         r.setNotas(p.getNotas());
+        r.setEstadoAprobacion(p.getEstadoAprobacion());
         return r;
     }
 }

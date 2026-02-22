@@ -24,6 +24,7 @@ com\proyect\CashSpring\infrastructure\persistence\entity\PrestamoEntity.class
 com\proyect\CashSpring\infrastructure\persistence\entity\PagoEntity.class
 com\proyect\CashSpring\web\controller\PagoController.class
 com\proyect\CashSpring\infrastructure\persistence\entity\ClienteEntity$ClienteEntityBuilder.class
+com\proyect\CashSpring\web\exception\BusinessException.class
 com\proyect\CashSpring\domain\enums\EstadoPrestamo.class
 com\proyect\CashSpring\infrastructure\persistence\entity\CuotaEntity$CuotaEntityBuilder.class
 com\proyect\CashSpring\web\dto\pago\PagoUpdateRequest.class
@@ -43,6 +44,7 @@ com\proyect\CashSpring\application\service\PrestamoService.class
 com\proyect\CashSpring\web\dto\cuota\CuotaCreateRequest.class
 com\proyect\CashSpring\web\dto\cuota\CuotaUpdateRequest.class
 com\proyect\CashSpring\infrastructure\persistence\entity\PrestamoEntity$PrestamoEntityBuilder.class
+com\proyect\CashSpring\domain\enums\EstadoAprobacionPago.class
 com\proyect\CashSpring\infrastructure\persistence\entity\UserEntity.class
 com\proyect\CashSpring\web\dto\pago\PagoResponse.class
 com\proyect\CashSpring\web\dto\cuota\CuotaResponse.class

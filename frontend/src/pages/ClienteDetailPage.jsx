@@ -2,6 +2,7 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { clienteApi } from '../services/api';
 import { prestamoApi } from '../services/prestamoApi';
+import { isAdmin } from '../services/authHelper';
 import Loading from '../components/Loading';
 
 export default function ClienteDetailPage() {
@@ -159,13 +160,15 @@ export default function ClienteDetailPage() {
               <button onClick={handleEdit} className='btn btn-primary'>
                 ✏️ Editar
               </button>
-              <button 
-                onClick={handleDelete} 
-                className='btn btn-danger'
-                disabled={saving}
-              >
-                🗑️ Eliminar
-              </button>
+              {isAdmin() && (
+                <button 
+                  onClick={handleDelete} 
+                  className='btn btn-danger'
+                  disabled={saving}
+                >
+                  🗑️ Eliminar
+                </button>
+              )}
             </div>
           )}
         </div>

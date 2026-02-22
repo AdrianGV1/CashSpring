@@ -4,6 +4,7 @@ import { prestamoApi } from '../services/prestamoApi';
 import { cuotaApi } from '../services/cuotaApi';
 import { pagoApi } from '../services/pagoApi';
 import { clienteApi } from '../services/api';
+import { isSupervisor } from '../services/authHelper';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 
 const PrestamoDetailPage = () => {
@@ -70,7 +71,22 @@ const PrestamoDetailPage = () => {
   const handleRegistrarPago = async (e) => {
     e.preventDefault();
     setPagoError(null);
-    const montoPendiente = prestamo.totalObjetivo - pagos.reduce((sum, p) => sum + p.monto, 0);
+    
+    // Si es supervisor, pedir confirmación
+    if (isSupervisor()) {
+      const confirmar = window.confirm(
+        '¿Está seguro de enviar esta solicitud de pago?\n\n' +
+        `Monto: ₡${Number(pagoData.monto).toLocaleString('es-CR')}\n` +
+        'La solicitud quedará pendiente hasta que un administrador la apruebe.'
+      );
+      if (!confirmar) {
+        return;
+      }
+    }
+    
+    // Filtrar solo pagos aprobados
+    const pagosAprobados = pagos.filter(p => p.estadoAprobacion === 'APROBADO');
+    const montoPendiente = prestamo.totalObjetivo - pagosAprobados.reduce((sum, p) => sum + p.monto, 0);
     const montoIngresado = Number(pagoData.monto);
     if (montoIngresado > montoPendiente) {
       setPagoError(`El monto excede el saldo pendiente. Máximo permitido: ₡${montoPendiente.toLocaleString('es-CR')}`);
@@ -95,6 +111,13 @@ const PrestamoDetailPage = () => {
       });
       setPagoError(null);
       setShowPagoForm(false);
+      
+      // Mostrar mensaje de éxito según el rol
+      if (isSupervisor()) {
+        alert('✅ Solicitud de pago enviada exitosamente.\n\nLa solicitud quedará pendiente hasta que un administrador la apruebe.');
+      } else {
+        alert('✅ Pago registrado exitosamente.');
+      }
     } catch (err) {
       setPagoError('Error al registrar el pago. Verifica los datos.');
       console.error(err);
@@ -179,7 +202,9 @@ const PrestamoDetailPage = () => {
   };
 
   const calcularProgreso = () => {
-    const totalPagado = pagos.reduce((sum, pago) => sum + pago.monto, 0);
+    // Filtrar solo pagos aprobados
+    const pagosAprobados = pagos.filter(p => p.estadoAprobacion === 'APROBADO');
+    const totalPagado = pagosAprobados.reduce((sum, pago) => sum + pago.monto, 0);
     const porcentaje = (totalPagado / prestamo.totalObjetivo) * 100;
     return {
       totalPagado,

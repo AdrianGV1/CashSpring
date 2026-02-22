@@ -6,6 +6,7 @@ import com.proyect.CashSpring.web.dto.pago.PagoResponse;
 import com.proyect.CashSpring.web.dto.pago.PagoUpdateRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,6 +27,13 @@ public class PagoController {
         return pagoService.listarTodos();
     }
 
+    // GET /api/pagos/solicitudes-pendientes -> solo solicitudes EN_ESPERA
+    @GetMapping("/pagos/solicitudes-pendientes")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<PagoResponse> listarSolicitudesPendientes() {
+        return pagoService.listarSolicitudesPendientes();
+    }
+
     // GET /api/prestamos/{prestamoId}/pagos -> lista por préstamo
     @GetMapping("/prestamos/{prestamoId}/pagos")
     public List<PagoResponse> listarPorPrestamo(@PathVariable Long prestamoId) {
@@ -43,5 +51,20 @@ public class PagoController {
     @PutMapping("/pagos/{pagoId}")
     public PagoResponse actualizar(@PathVariable Long pagoId, @RequestBody PagoUpdateRequest request) {
         return pagoService.actualizar(pagoId, request);
+    }
+
+    // POST /api/pagos/{pagoId}/aprobar
+    @PostMapping("/pagos/{pagoId}/aprobar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public PagoResponse aprobar(@PathVariable Long pagoId) {
+        return pagoService.aprobarPago(pagoId);
+    }
+
+    // DELETE /api/pagos/{pagoId}/rechazar
+    @DeleteMapping("/pagos/{pagoId}/rechazar")
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void rechazar(@PathVariable Long pagoId) {
+        pagoService.rechazarPago(pagoId);
     }
 }

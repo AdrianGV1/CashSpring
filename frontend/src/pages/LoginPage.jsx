@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -8,22 +9,36 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    // Credenciales hardcodeadas
-    if (username === 'admin' && password === 'admin123') {
-      // Guardar sesión en localStorage
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('username', username);
-      
-      // Redirigir al dashboard
-      setTimeout(() => {
-        navigate('/');
-      }, 500);
-    } else {
+    try {
+      // Intentar hacer una petición al backend con las credenciales
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+      const response = await axios.get(`${apiUrl}/api/clientes`, {
+        auth: {
+          username: username,
+          password: password
+        }
+      });
+
+      // Si la petición es exitosa, las credenciales son válidas
+      if (response.status === 200) {
+        // Guardar sesión y credenciales en localStorage
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('username', username);
+        localStorage.setItem('password', password);
+        
+        // Redirigir a inicio
+        setTimeout(() => {
+          navigate('/');
+          window.location.reload(); // Recargar para que api.js use las nuevas credenciales
+        }, 500);
+      }
+    } catch (err) {
+      console.error('Login error:', err);
       setError('Usuario o contraseña incorrectos');
       setIsLoading(false);
     }

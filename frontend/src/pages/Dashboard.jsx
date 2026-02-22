@@ -4,8 +4,10 @@ import { clienteApi } from '../services/api';
 import { prestamoApi } from '../services/prestamoApi';
 import { cuotaApi } from '../services/cuotaApi';
 import { pagoApi } from '../services/pagoApi';
+import { isAdmin } from '../services/authHelper';
 import Loading from '../components/Loading';
 import EmptyState from '../components/EmptyState';
+import { Alert } from '../components/Alert';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 
 const Dashboard = () => {
@@ -19,15 +21,19 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [ultimasActividades, setUltimasActividades] = useState([]);
+  const [solicitudesPendientes, setSolicitudesPendientes] = useState([]);
+  const [alert, setAlert] = useState(null);
+  const [procesando, setProcesando] = useState(null);
   const navigate = useNavigate();
+  const userIsAdmin = isAdmin();
 
   useEffect(() => {
-    loadDashboardData();
+    loadData();
   }, []);
 
-  useAutoRefresh(() => loadDashboardData(true));
+  useAutoRefresh(() => loadData(true));
 
-  const loadDashboardData = async (silent = false) => {
+  const loadData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
       
@@ -38,6 +44,17 @@ const Dashboard = () => {
         pagoApi.getAll()
       ]);
 
+      // Si es admin, cargar solicitudes pendientes
+      if (userIsAdmin) {
+        try {
+          const solicitudes = await pagoApi.getSolicitudesPendientes();
+          setSolicitudesPendientes(solicitudes || []);
+        } catch (err) {
+          console.error('Error cargando solicitudes:', err);
+          setSolicitudesPendientes([]);
+        }
+      }
+
       // Calcular estadísticas
       const prestamosActivos = prestamos.filter(p => p.estado === 'ACTIVO');
       const cuotasPendientes = cuotas.filter(c => c.estado === 'PENDIENTE');
@@ -46,14 +63,17 @@ const Dashboard = () => {
         return new Date(c.fechaVencimiento) < new Date();
       });
 
+      // Filtrar solo pagos aprobados para cálculos
+      const pagosAprobados = pagos.filter(p => p.estadoAprobacion === 'APROBADO');
+
       const totalPorCobrar = prestamosActivos.reduce((sum, p) => {
-        const pagado = pagos
+        const pagado = pagosAprobados
           .filter(pago => pago.prestamoId === p.prestamoId)
           .reduce((s, pago) => s + pago.monto, 0);
         return sum + (p.totalObjetivo - pagado);
       }, 0);
 
-      const totalRecaudado = pagos.reduce((sum, p) => sum + p.monto, 0);
+      const totalRecaudado = pagosAprobados.reduce((sum, p) => sum + p.monto, 0);
 
       setStats({
         totalClientes: clientes.filter(c => c.activo).length,
@@ -64,25 +84,59 @@ const Dashboard = () => {
         totalRecaudado
       });
 
-      // Últimas actividades (últimos 5 pagos)
-      const ultimosPagos = pagos
-        .sort((a, b) => new Date(b.fechaPago) - new Date(a.fechaPago))
-        .slice(0, 5)
-        .map(pago => {
-          const prestamo = prestamos.find(p => p.prestamoId === pago.prestamoId);
-          const cliente = prestamo ? clientes.find(c => c.clienteId === prestamo.clienteId) : null;
-          return {
-            ...pago,
-            clienteNombre: cliente ? `${cliente.nombre} ${cliente.apellido}` : 'N/A'
-          };
-        });
+      // Si no es admin, mostrar últimos pagos aprobados (comportamiento original)
+      if (!userIsAdmin) {
+        const ultimosPagos = pagosAprobados
+          .sort((a, b) => new Date(b.fechaPago) - new Date(a.fechaPago))
+          .slice(0, 5)
+          .map(pago => {
+            const prestamo = prestamos.find(p => p.prestamoId === pago.prestamoId);
+            const cliente = prestamo ? clientes.find(c => c.clienteId === prestamo.clienteId) : null;
+            return {
+              ...pago,
+              clienteNombre: cliente ? `${cliente.nombre} ${cliente.apellido}` : 'N/A'
+            };
+          });
 
-      setUltimasActividades(ultimosPagos);
+        setUltimasActividades(ultimosPagos);
+      }
 
     } catch (err) {
       console.error('Error al cargar dashboard:', err);
     } finally {
       if (!silent) setLoading(false);
+    }
+  };
+
+  const handleAprobar = async (pagoId) => {
+    if (!confirm('¿Confirmar aprobación de este pago?')) return;
+    
+    try {
+      setProcesando(pagoId);
+      await pagoApi.aprobar(pagoId);
+      setAlert({ type: 'success', message: 'Pago aprobado correctamente' });
+      await loadData(true);
+    } catch (error) {
+      console.error('Error al aprobar pago:', error);
+      setAlert({ type: 'error', message: 'Error al aprobar el pago: ' + (error.response?.data?.message || error.message) });
+    } finally {
+      setProcesando(null);
+    }
+  };
+
+  const handleRechazar = async (pagoId) => {
+    if (!confirm('¿Confirmar rechazo de este pago? Esta acción no se puede deshacer.')) return;
+    
+    try {
+      setProcesando(pagoId);
+      await pagoApi.rechazar(pagoId);
+      setAlert({ type: 'success', message: 'Pago rechazado correctamente' });
+      await loadData(true);
+    } catch (error) {
+      console.error('Error al rechazar pago:', error);
+      setAlert({ type: 'error', message: 'Error al rechazar el pago: ' + (error.response?.data?.message || error.message) });
+    } finally {
+      setProcesando(null);
     }
   };
 
@@ -99,14 +153,14 @@ const Dashboard = () => {
   };
 
   if (loading) {
-    return <Loading message="Cargando información del dashboard..." fullScreen={true} />;
+    return <Loading message="Cargando información..." fullScreen={true} />;
   }
 
   return (
     <div className="container">
       <div className="page-header">
         <div>
-          <h1>📊 Dashboard</h1>
+          <h1>🏠 Inicio</h1>
           <p className="subtitle">Resumen general de tu negocio de microfinanzas</p>
         </div>
       </div>
@@ -162,143 +216,117 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Resumen financiero */}
-      <div className="grid-2 mt-4">
-        <div className="card card-financial card-danger-light">
-          <div className="card-header">
-            <h3><span className="card-title-icon">💸</span> Por Cobrar</h3>
-          </div>
-          <div className="card-body">
-            <div className="financial-stat">
-              <div className="financial-amount danger">
-                {formatMoney(stats.totalPorCobrar)}
+      {/* Resumen financiero - Solo para Admin */}
+      {userIsAdmin && (
+        <div className="grid-2 mt-4">
+          <div className="card card-financial card-danger-light">
+            <div className="card-header">
+              <h3><span className="card-title-icon">💸</span> Por Cobrar</h3>
+            </div>
+            <div className="card-body">
+              <div className="financial-stat">
+                <div className="financial-amount danger">
+                  {formatMoney(stats.totalPorCobrar)}
+                </div>
+                <p className="text-muted">
+                  <span className="info-icon">ℹ️</span>
+                  Total pendiente de cobro en préstamos activos
+                </p>
               </div>
-              <p className="text-muted">
-                <span className="info-icon">ℹ️</span>
-                Total pendiente de cobro en préstamos activos
-              </p>
+            </div>
+          </div>
+
+          <div className="card card-financial card-success-light">
+            <div className="card-header">
+              <h3><span className="card-title-icon">✅</span> Recaudado</h3>
+            </div>
+            <div className="card-body">
+              <div className="financial-stat">
+                <div className="financial-amount success">
+                  {formatMoney(stats.totalRecaudado)}
+                </div>
+                <p className="text-muted">
+                  <span className="info-icon">📈</span>
+                  Total recaudado históricamente
+                </p>
+              </div>
             </div>
           </div>
         </div>
+      )}
 
-        <div className="card card-financial card-success-light">
+      {/* Alertas */}
+      {alert && (
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          onClose={() => setAlert(null)}
+        />
+      )}
+
+      {/* Solicitudes de Pago (Solo ADMIN) */}
+      {userIsAdmin && (
+        <div className="card mt-4">
           <div className="card-header">
-            <h3><span className="card-title-icon">✅</span> Recaudado</h3>
+            <h3><span className="card-title-icon">⏳</span> Solicitudes de Pago Pendientes</h3>
           </div>
           <div className="card-body">
-            <div className="financial-stat">
-              <div className="financial-amount success">
-                {formatMoney(stats.totalRecaudado)}
-              </div>
-              <p className="text-muted">
-                <span className="info-icon">📈</span>
-                Total recaudado históricamente
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Últimas actividades */}
-      <div className="card mt-4">
-        <div className="card-header">
-          <h3><span className="card-title-icon">🕒</span> Últimos Pagos Recibidos</h3>
-        </div>
-        <div className="card-body">
-          {ultimasActividades.length === 0 ? (
-            <EmptyState 
-              icon="📭"
-              title="Sin actividad reciente"
-              message="Los últimos pagos recibidos aparecerán aquí"
-            />
-          ) : (
-            <div className="table-container">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th><span className="th-icon">📅</span> Fecha</th>
-                    <th><span className="th-icon">👤</span> Cliente</th>
-                    <th><span className="th-icon">💳</span> Préstamo</th>
-                    <th><span className="th-icon">💵</span> Monto</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ultimasActividades.map(pago => (
-                    <tr key={pago.pagoId}>
-                      <td><span className="badge badge-date">{formatDate(pago.fechaPago)}</span></td>
-                      <td className="font-medium">{pago.clienteNombre}</td>
-                      <td><span className="badge badge-secondary">#{pago.prestamoId}</span></td>
-                      <td><span className="text-success font-bold">{formatMoney(pago.monto)}</span></td>
+            {solicitudesPendientes.length === 0 ? (
+              <EmptyState 
+                icon="✅"
+                title="Sin solicitudes pendientes"
+                message="Todas las solicitudes han sido procesadas"
+              />
+            ) : (
+              <div className="table-container">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th><span className="th-icon">📅</span> Fecha</th>
+                      <th><span className="th-icon">👤</span> Cliente</th>
+                      <th><span className="th-icon">📋</span> Cédula</th>
+                      <th><span className="th-icon">💳</span> Préstamo</th>
+                      <th><span className="th-icon">💵</span> Monto</th>
+                      <th><span className="th-icon">⚙️</span> Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  </thead>
+                  <tbody>
+                    {solicitudesPendientes.map(pago => (
+                      <tr key={pago.pagoId}>
+                        <td><span className="badge badge-date">{formatDate(pago.fechaPago)}</span></td>
+                        <td className="font-medium">{pago.clienteNombre}</td>
+                        <td><span className="badge badge-secondary">{pago.clienteCedula}</span></td>
+                        <td><span className="badge badge-secondary">#{pago.prestamoId}</span></td>
+                        <td><span className="text-success font-bold">{formatMoney(pago.monto)}</span></td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              onClick={() => handleAprobar(pago.pagoId)}
+                              disabled={procesando === pago.pagoId}
+                              className="btn btn-sm btn-success"
+                              title="Aprobar pago"
+                            >
+                              {procesando === pago.pagoId ? '⏳' : '✓'} Aprobar
+                            </button>
+                            <button
+                              onClick={() => handleRechazar(pago.pagoId)}
+                              disabled={procesando === pago.pagoId}
+                              className="btn btn-sm btn-danger"
+                              title="Rechazar pago"
+                            >
+                              {procesando === pago.pagoId ? '⏳' : '✗'} Rechazar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* Acciones rápidas */}
-      <div className="quick-actions mt-4">
-        <h3 className="section-title">
-          <span className="section-icon">⚡</span>
-          Acciones Rápidas
-        </h3>
-        <div className="actions-grid">
-          <button 
-            onClick={() => navigate('/clientes/nuevo')}
-            className="action-btn action-btn-blue"
-          >
-            <div className="action-content">
-              <span className="action-icon">➕</span>
-              <div className="action-text">
-                <strong>Nuevo Cliente</strong>
-                <span className="action-desc">Agregar cliente al sistema</span>
-              </div>
-            </div>
-            <span className="action-arrow">→</span>
-          </button>
-          <button 
-            onClick={() => navigate('/prestamos/nuevo')}
-            className="action-btn action-btn-green"
-          >
-            <div className="action-content">
-              <span className="action-icon">💵</span>
-              <div className="action-text">
-                <strong>Nuevo Préstamo</strong>
-                <span className="action-desc">Crear préstamo nuevo</span>
-              </div>
-            </div>
-            <span className="action-arrow">→</span>
-          </button>
-          <button 
-            onClick={() => navigate('/cuotas')}
-            className="action-btn action-btn-orange"
-          >
-            <div className="action-content">
-              <span className="action-icon">📋</span>
-              <div className="action-text">
-                <strong>Ver Cuotas</strong>
-                <span className="action-desc">Gestionar cuotas pendientes</span>
-              </div>
-            </div>
-            <span className="action-arrow">→</span>
-          </button>
-          <button 
-            onClick={() => navigate('/pagos')}
-            className="action-btn action-btn-purple"
-          >
-            <div className="action-content">
-              <span className="action-icon">💳</span>
-              <div className="action-text">
-                <strong>Ver Pagos</strong>
-                <span className="action-desc">Historial de pagos</span>
-              </div>
-            </div>
-            <span className="action-arrow">→</span>
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
