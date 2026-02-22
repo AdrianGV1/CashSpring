@@ -14,17 +14,19 @@ public class DatabaseMigration {
     }
 
     @PostConstruct
-    public void migratePagosEstadoAprobacion() {
+    public void runMigrations() {
+        migratePagosEstadoAprobacion();
+        migratePrestamoEstadoCheckConstraint();
+    }
+
+    private void migratePagosEstadoAprobacion() {
         try {
-            // Verificar si la columna ya existe y tiene constraint
             Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.columns " +
                 "WHERE table_name = 'pagos' AND column_name = 'estado_aprobacion'",
                 Integer.class
             );
-
             if (count != null && count > 0) {
-                // La columna ya existe, actualizar registros NULL
                 jdbcTemplate.execute(
                     "UPDATE pagos SET estado_aprobacion = 'APROBADO' WHERE estado_aprobacion IS NULL"
                 );
@@ -32,6 +34,35 @@ public class DatabaseMigration {
             }
         } catch (Exception e) {
             System.err.println("⚠️ Error en migración de estado_aprobacion: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Asegura que el check constraint de prestamos.estado incluya 'LIQUIDADO'.
+     * Si la restricción existente no lo incluye, la recrea con todos los valores válidos.
+     */
+    private void migratePrestamoEstadoCheckConstraint() {
+        try {
+            // Verificar si la restricción actual ya incluye LIQUIDADO
+            Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.check_constraints " +
+                "WHERE constraint_name = 'prestamos_estado_check' " +
+                "AND check_clause LIKE '%LIQUIDADO%'",
+                Integer.class
+            );
+            if (count == null || count == 0) {
+                // Eliminar la restricción antigua y recrearla incluyendo LIQUIDADO
+                jdbcTemplate.execute(
+                    "ALTER TABLE prestamos DROP CONSTRAINT IF EXISTS prestamos_estado_check"
+                );
+                jdbcTemplate.execute(
+                    "ALTER TABLE prestamos ADD CONSTRAINT prestamos_estado_check " +
+                    "CHECK (estado IN ('ACTIVO', 'ATRASADO', 'PAGADO', 'LIQUIDADO'))"
+                );
+                System.out.println("✅ Migración completada: restricción prestamos_estado_check actualizada con LIQUIDADO");
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Error en migración de prestamos_estado_check: " + e.getMessage());
         }
     }
 }

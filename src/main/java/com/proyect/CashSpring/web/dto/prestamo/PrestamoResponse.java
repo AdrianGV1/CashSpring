@@ -25,6 +25,8 @@ public class PrestamoResponse {
     private Boolean esExtendido;
     private Long montoExtendido;
 
+    private Long montoLiquidacion;
+
     private List<CuotaItem> cuotas;
 
     public static class CuotaItem {
@@ -82,6 +84,9 @@ public class PrestamoResponse {
 
     public Long getMontoExtendido() { return montoExtendido; }
     public void setMontoExtendido(Long montoExtendido) { this.montoExtendido = montoExtendido; }
+
+    public Long getMontoLiquidacion() { return montoLiquidacion; }
+    public void setMontoLiquidacion(Long montoLiquidacion) { this.montoLiquidacion = montoLiquidacion; }
 
     public List<CuotaItem> getCuotas() { return cuotas; }
     public void setCuotas(List<CuotaItem> cuotas) { this.cuotas = cuotas; }

@@ -14,6 +14,7 @@ com\proyect\CashSpring\web\dto\cliente\ClienteUpdateRequest.class
 com\proyect\CashSpring\domain\enums\EstadoCuota.class
 com\proyect\CashSpring\infrastructure\persistence\entity\ClienteEntity.class
 com\proyect\CashSpring\application\service\CuotaService.class
+com\proyect\CashSpring\infrastructure\persistence\DatabaseMigration.class
 com\proyect\CashSpring\infrastructure\security\UserDetailsServiceImpl.class
 com\proyect\CashSpring\web\dto\prestamo\PrestamoResponse.class
 com\proyect\CashSpring\infrastructure\persistence\entity\UserEntity$UserEntityBuilder.class

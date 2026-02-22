@@ -41,5 +41,12 @@ export const prestamoApi = {
     if (montoPorCuota && montoPorCuota > 0) body.montoPorCuota = montoPorCuota;
     const response = await axiosInstance.post(`/${id}/extender`, body);
     return response.data;
+  },
+
+  liquidar: async (id, fechaLiquidacion) => {
+    const body = {};
+    if (fechaLiquidacion) body.fechaLiquidacion = fechaLiquidacion;
+    const response = await axiosInstance.post(`/${id}/liquidar`, body);
+    return response.data;
   }
 };

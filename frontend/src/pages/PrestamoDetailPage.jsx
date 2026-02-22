@@ -30,6 +30,10 @@ const PrestamoDetailPage = () => {
     notas: ''
   });
   const [pagoError, setPagoError] = useState(null);
+  const [showLiquidarForm, setShowLiquidarForm] = useState(false);
+  const [liquidarLoading, setLiquidarLoading] = useState(false);
+  const [liquidarError, setLiquidarError] = useState(null);
+  const [fechaLiquidacion, setFechaLiquidacion] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     loadData();
@@ -121,6 +125,32 @@ const PrestamoDetailPage = () => {
     } catch (err) {
       setPagoError('Error al registrar el pago. Verifica los datos.');
       console.error(err);
+    }
+  };
+
+  const handleLiquidarPrestamo = async (e) => {
+    e.preventDefault();
+    const montoLiq = prestamo.montoLiquidacion || 0;
+    const confirmar = window.confirm(
+      `¿Confirmar la liquidación del préstamo?\n\n` +
+      `Monto a pagar: ₡${montoLiq.toLocaleString('es-CR')}\n` +
+      `(${formatMoney(prestamo.montoPrestado)} de capital + 20% de interés)\n\n` +
+      `Las cuotas pendientes quedarán en ₡0 y el préstamo será marcado como LIQUIDADO.`
+    );
+    if (!confirmar) return;
+    try {
+      setLiquidarLoading(true);
+      setLiquidarError(null);
+      await prestamoApi.liquidar(id, fechaLiquidacion);
+      await loadData();
+      setShowLiquidarForm(false);
+      alert('✅ Préstamo liquidado exitosamente.');
+    } catch (err) {
+      const mensaje = err?.response?.data?.message || err?.message;
+      setLiquidarError(mensaje || 'Error al liquidar el préstamo. Intenta de nuevo.');
+      console.error(err);
+    } finally {
+      setLiquidarLoading(false);
     }
   };
 
@@ -234,7 +264,8 @@ const PrestamoDetailPage = () => {
   }
 
   const progreso = calcularProgreso();
-  const estaCompleto = progreso.totalPagado >= prestamo.totalObjetivo;
+  const estaLiquidado = prestamo.estado === 'LIQUIDADO';
+  const estaCompleto = estaLiquidado || progreso.totalPagado >= prestamo.totalObjetivo;
 
   return (
     <div className="container">
@@ -257,6 +288,31 @@ const PrestamoDetailPage = () => {
             className="btn btn-primary"
           >
             {showPagoForm ? 'Cancelar' : '+ Registrar Pago'}
+          </button>
+        )}
+        {!estaCompleto && (
+          <button
+            onClick={() => {
+              setShowLiquidarForm(!showLiquidarForm);
+              setLiquidarError(null);
+              setShowPagoForm(false);
+              setShowExtensionForm(false);
+            }}
+            style={{
+              marginLeft: '0.5rem',
+              padding: '0.5rem 1rem',
+              border: 'none',
+              borderRadius: '6px',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+              backgroundColor: showLiquidarForm ? '#6c757d' : '#dc3545',
+              color: '#fff',
+              transition: 'background-color 0.2s'
+            }}
+            title="Liquidar el préstamo pagando el capital + 20% de interés"
+          >
+            {showLiquidarForm ? 'Cancelar Liquidación' : '💰 Liquidar Préstamo'}
           </button>
         )}
         {prestamo.tipoAcuerdo === 'QUINCENAS_DOBLES' && !prestamo.esExtendido && !estaCompleto && (() => {
@@ -297,8 +353,50 @@ const PrestamoDetailPage = () => {
         })()}
       </div>
 
-      {/* Banner de préstamo completado */}
-      {estaCompleto && (
+      {/* Banner de préstamo LIQUIDADO */}
+      {estaLiquidado && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+            background: 'linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%)',
+            border: '2px solid #ffc107',
+            borderRadius: '10px',
+            padding: '1.1rem 1.4rem',
+            marginBottom: '1.25rem',
+            boxShadow: '0 2px 8px rgba(255,193,7,0.22)'
+          }}
+        >
+          <span style={{ fontSize: '2rem', lineHeight: 1 }}>⚡</span>
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontWeight: 700, fontSize: '1.1rem', color: '#664d03' }}>
+              ¡Préstamo Liquidado Anticipadamente!
+            </p>
+            <p style={{ margin: '0.2rem 0 0', color: '#856404', fontSize: '0.9rem' }}>
+              Este préstamo fue liquidado pagando <strong>{formatMoney(prestamo.montoLiquidacion)}</strong>
+              {' '}(capital + 20% de interés). El saldo pendiente es <strong>₡0</strong>.
+            </p>
+          </div>
+          <span
+            style={{
+              background: '#ffc107',
+              color: '#000',
+              fontWeight: 700,
+              fontSize: '0.8rem',
+              padding: '0.3rem 0.75rem',
+              borderRadius: '20px',
+              whiteSpace: 'nowrap',
+              letterSpacing: '0.05em'
+            }}
+          >
+            ⚡ LIQUIDADO
+          </span>
+        </div>
+      )}
+
+      {/* Banner de préstamo completado (pago normal 100%) */}
+      {!estaLiquidado && estaCompleto && (
         <div
           style={{
             display: 'flex',
@@ -336,6 +434,98 @@ const PrestamoDetailPage = () => {
           >
             ✔ COMPLETADO
           </span>
+        </div>
+      )}
+
+      {/* Formulario de liquidación */}
+      {showLiquidarForm && !estaCompleto && (
+        <div className="card mb-4" style={{ borderLeft: '4px solid #dc3545' }}>
+          <div className="card-header">
+            <h3>💰 Liquidar Préstamo</h3>
+          </div>
+          <div className="card-body">
+            {liquidarError && (
+              <div style={{ color: '#842029', background: '#f8d7da', borderRadius: '6px', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                {liquidarError}
+              </div>
+            )}
+            <p style={{ color: '#495057', marginBottom: '1rem' }}>
+              Al liquidar el préstamo pagas el <strong>monto original + 20% de interés</strong>, sin importar las cuotas restantes.
+              Las cuotas ya pagadas son ganancia adicional y <strong>no</strong> se descuentan del monto de liquidación.
+            </p>
+            <div className="info-grid" style={{ marginBottom: '1.25rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="info-item">
+                <span className="label">Monto original prestado:</span>
+                <span className="value">{formatMoney(prestamo.montoPrestado)}</span>
+              </div>
+              <div className="info-item">
+                <span className="label">Interés de liquidación (20%):</span>
+                <span className="value" style={{ color: '#dc3545' }}>
+                  {formatMoney((prestamo.montoLiquidacion || 0) - prestamo.montoPrestado)}
+                </span>
+              </div>
+              <div className="info-item">
+                <span className="label">💰 Monto a pagar para liquidar:</span>
+                <span className="value" style={{ color: '#dc3545', fontWeight: 700, fontSize: '1.1rem' }}>
+                  {formatMoney(prestamo.montoLiquidacion || 0)}
+                </span>
+              </div>
+              <div className="info-item">
+                <span className="label">Total ya pagado (cuotas):</span>
+                <span className="value" style={{ color: '#198754' }}>{formatMoney(progreso.totalPagado)}</span>
+              </div>
+              <div className="info-item">
+                <span className="label">Cuotas pagadas hasta hoy:</span>
+                <span className="value">
+                  {cuotas.filter(c => c.estado === 'CUBIERTA').length} de {cuotas.length}
+                </span>
+              </div>
+              <div className="info-item">
+                <span className="label">Cuotas pendientes (quedarán en ₡0):</span>
+                <span className="value" style={{ color: '#6c757d' }}>
+                  {cuotas.filter(c => c.estado !== 'CUBIERTA').length}
+                </span>
+              </div>
+            </div>
+            <form onSubmit={handleLiquidarPrestamo} className="form-container">
+              <div className="form-group">
+                <label>Fecha de Liquidación *</label>
+                <input
+                  type="date"
+                  value={fechaLiquidacion}
+                  onChange={(e) => setFechaLiquidacion(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-actions">
+                <button
+                  type="button"
+                  onClick={() => { setShowLiquidarForm(false); setLiquidarError(null); }}
+                  className="btn btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={liquidarLoading}
+                  style={{
+                    padding: '0.5rem 1.25rem',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    cursor: liquidarLoading ? 'not-allowed' : 'pointer',
+                    backgroundColor: '#dc3545',
+                    color: '#fff'
+                  }}
+                >
+                  {liquidarLoading
+                    ? 'Procesando...'
+                    : `Confirmar Liquidación — ${formatMoney(prestamo.montoLiquidacion || 0)}`}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -614,11 +804,13 @@ const PrestamoDetailPage = () => {
                 <span className={`badge badge-${
                   prestamo.estado === 'ACTIVO' ? 'success' :
                   prestamo.estado === 'PAGADO' ? 'info' :
-                  prestamo.estado === 'ATRASADO' ? 'danger' : 'secondary'
+                  prestamo.estado === 'ATRASADO' ? 'danger' :
+                  prestamo.estado === 'LIQUIDADO' ? 'warning' : 'secondary'
                 }`}>
                   {prestamo.estado === 'ACTIVO' ? 'Activo' :
                    prestamo.estado === 'PAGADO' ? 'Pagado' :
-                   prestamo.estado === 'ATRASADO' ? 'Atrasado' : prestamo.estado}
+                   prestamo.estado === 'ATRASADO' ? 'Atrasado' :
+                   prestamo.estado === 'LIQUIDADO' ? '⚡ Liquidado' : prestamo.estado}
                 </span>
               </div>
               <div className="info-item">

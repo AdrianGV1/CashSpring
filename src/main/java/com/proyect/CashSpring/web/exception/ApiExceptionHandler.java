@@ -1,5 +1,7 @@
 package com.proyect.CashSpring.web.exception;
 
+import jakarta.persistence.PersistenceException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -52,6 +54,23 @@ public class ApiExceptionHandler {
         }
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(error("CONFLICT", msg));
+    }
+
+    @ExceptionHandler(PersistenceException.class)
+    public ResponseEntity<?> handlePersistence(PersistenceException ex) {
+        Throwable cause = ex.getCause();
+        if (cause instanceof DataAccessException dae) {
+            return handleDataIntegrity(new DataIntegrityViolationException(dae.getMessage(), dae));
+        }
+        // Extraer mensaje del root cause (ej: constraint violation de PostgreSQL)
+        String msg = cause != null ? cause.getMessage() : ex.getMessage();
+        if (msg != null && msg.contains("viola la restricción")) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(error("CONFLICT", "Operación rechazada por restricción de base de datos"));
+        }
+        ex.printStackTrace();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(error("INTERNAL_ERROR", "Ocurrió un error inesperado"));
     }
 
     @ExceptionHandler(Exception.class)

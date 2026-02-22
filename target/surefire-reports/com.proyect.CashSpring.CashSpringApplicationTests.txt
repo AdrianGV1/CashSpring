@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.proyect.CashSpring.CashSpringApplicationTests
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.342 s -- in com.proyect.CashSpring.CashSpringApplicationTests

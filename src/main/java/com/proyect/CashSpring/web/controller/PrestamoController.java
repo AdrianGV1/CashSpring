@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.Map;
 
 @RestController
@@ -59,6 +60,18 @@ public class PrestamoController {
         }
         Long montoPorCuota = body.get("montoPorCuota"); // opcional, puede ser null
         return prestamoService.extenderPrestamo(id, montoExtendido, montoPorCuota);
+    }
+
+    // POST /api/prestamos/{id}/liquidar
+    @PostMapping("/{id}/liquidar")
+    public PrestamoResponse liquidar(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body) {
+        String fechaStr = (body != null) ? body.get("fechaLiquidacion") : null;
+        LocalDate fecha = (fechaStr != null && !fechaStr.isBlank())
+                ? LocalDate.parse(fechaStr)
+                : LocalDate.now();
+        return prestamoService.liquidarPrestamo(id, fecha);
     }
 
 }

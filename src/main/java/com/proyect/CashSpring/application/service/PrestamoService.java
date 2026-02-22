@@ -3,8 +3,10 @@ package com.proyect.CashSpring.application.service;
 import com.proyect.CashSpring.domain.enums.EstadoCuota;
 import com.proyect.CashSpring.domain.enums.EstadoPrestamo;
 import com.proyect.CashSpring.domain.enums.TipoAcuerdo;
+import com.proyect.CashSpring.domain.enums.EstadoAprobacionPago;
 import com.proyect.CashSpring.infrastructure.persistence.entity.ClienteEntity;
 import com.proyect.CashSpring.infrastructure.persistence.entity.CuotaEntity;
+import com.proyect.CashSpring.infrastructure.persistence.entity.PagoEntity;
 import com.proyect.CashSpring.infrastructure.persistence.entity.PrestamoEntity;
 import com.proyect.CashSpring.infrastructure.persistence.jpa.ClienteJpaRepository;
 import com.proyect.CashSpring.infrastructure.persistence.jpa.PrestamoJpaRepository;
@@ -37,7 +39,49 @@ public class PrestamoService {
         this.prestamoRepo = prestamoRepo;
     }
 
-     @Transactional
+    @Transactional
+    public PrestamoResponse liquidarPrestamo(Long prestamoId, LocalDate fechaLiquidacion) {
+        PrestamoEntity prestamo = prestamoRepo.findById(prestamoId)
+                .orElseThrow(() -> new IllegalArgumentException("Préstamo no encontrado: " + prestamoId));
+
+        if (prestamo.getEstado() != EstadoPrestamo.ACTIVO && prestamo.getEstado() != EstadoPrestamo.ATRASADO) {
+            throw new IllegalArgumentException(
+                    "Solo se pueden liquidar préstamos en estado ACTIVO o ATRASADO. Estado actual: " + prestamo.getEstado());
+        }
+
+        // Monto de liquidación = montoPrestado + 20% de interés (usa el interesBase del préstamo)
+        long montoLiquidacion = calcularTotalMontoMasInteres(prestamo.getMontoPrestado(), prestamo.getInteresBase());
+
+        LocalDate fecha = (fechaLiquidacion != null) ? fechaLiquidacion : LocalDate.now();
+
+        // Persistir el pago directamente (evita conflictos con la cascade de la colección)
+        PagoEntity pagoLiquidacion = PagoEntity.builder()
+                .prestamo(prestamo)
+                .monto(montoLiquidacion)
+                .fechaPago(fecha)
+                .notas("Liquidación anticipada del préstamo")
+                .estadoAprobacion(EstadoAprobacionPago.APROBADO)
+                .build();
+        em.persist(pagoLiquidacion);
+
+        // Marcar cuotas PENDIENTES como CUBIERTA (sin modificar montoObjetivo)
+        for (CuotaEntity cuota : prestamo.getCuotas()) {
+            if (cuota.getEstado() == EstadoCuota.PENDIENTE) {
+                cuota.setEstado(EstadoCuota.CUBIERTA);
+                cuota.setFechaCubierta(fecha);
+            }
+        }
+
+        // Marcar el préstamo como LIQUIDADO
+        prestamo.setEstado(EstadoPrestamo.LIQUIDADO);
+
+        // Flush para forzar todos los cambios a BD antes de generar la respuesta
+        em.flush();
+
+        return toResponse(prestamo);
+    }
+
+    @Transactional
     public PrestamoResponse extenderPrestamo(Long prestamoId, Long montoExtendido, Long montoPorCuota) {
         // Verificar si el préstamo existe
         PrestamoEntity prestamo = prestamoRepo.findById(prestamoId)
@@ -497,6 +541,10 @@ public class PrestamoService {
         resp.setEstado(p.getEstado());
         resp.setEsExtendido(p.getEsExtendido());
         resp.setMontoExtendido(p.getMontoExtendido());
+
+        // montoLiquidacion siempre calculado dinámicamente
+        long montoLiq = calcularTotalMontoMasInteres(p.getMontoPrestado(), p.getInteresBase());
+        resp.setMontoLiquidacion(montoLiq);
 
         List<PrestamoResponse.CuotaItem> cuotas = new ArrayList<>();
         for (CuotaEntity c : p.getCuotas()) {
