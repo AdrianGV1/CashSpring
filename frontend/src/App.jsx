@@ -1,13 +1,11 @@
 ﻿import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import ClientesPage from './pages/ClientesPage'
-import ClienteFormPage from './pages/ClienteFormPage'
 import ClienteDetailPage from './pages/ClienteDetailPage'
 import PrestamosPage from './pages/PrestamosPage'
 import PrestamoFormPage from './pages/PrestamoFormPage'
 import PrestamoDetailPage from './pages/PrestamoDetailPage'
 import CuotasPage from './pages/CuotasPage'
-import PagosPage from './pages/PagosPage'
 import LoginPage from './pages/LoginPage'
 import { ProtectedRoute, logout, getUsername } from './components/ProtectedRoute'
 
@@ -45,15 +43,9 @@ function Navigation() {
           <Link to="/cuotas" className={`nav-link ${isActive('/cuotas') ? 'active' : ''}`}>
             Cuotas
           </Link>
-          <Link to="/pagos" className={`nav-link ${isActive('/pagos') ? 'active' : ''}`}>
-            Pagos
-          </Link>
         </div>
 
         <div className="nav-actions">
-          <Link to="/clientes/nuevo" className="btn btn-primary btn-sm">
-            + Nuevo Cliente
-          </Link>
           <div className="user-menu">
             <span className="username">👤 {getUsername()}</span>
             <button onClick={handleLogout} className="btn btn-secondary btn-sm">
@@ -100,16 +92,6 @@ function AppContent() {
               <ClientesPage />
             </ProtectedRoute>
           } />
-          <Route path="/clientes/nuevo" element={
-            <ProtectedRoute>
-              <ClienteFormPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/clientes/:id/editar" element={
-            <ProtectedRoute>
-              <ClienteFormPage />
-            </ProtectedRoute>
-          } />
           <Route path="/clientes/:id" element={
             <ProtectedRoute>
               <ClienteDetailPage />
@@ -137,13 +119,6 @@ function AppContent() {
           <Route path="/cuotas" element={
             <ProtectedRoute>
               <CuotasPage />
-            </ProtectedRoute>
-          } />
-          
-          {/* Pagos */}
-          <Route path="/pagos" element={
-            <ProtectedRoute>
-              <PagosPage />
             </ProtectedRoute>
           } />
         </Routes>

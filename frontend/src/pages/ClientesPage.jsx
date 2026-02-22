@@ -1,7 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { clienteApi } from '../services/api';
-import ClienteCard from '../components/ClienteCard';
 import Loading from '../components/Loading';
 import EmptyState from '../components/EmptyState';
 import { ErrorAlert } from '../components/Alert';
@@ -59,9 +58,13 @@ export default function ClientesPage() {
       <div className='mb-8'>
         <h1 className='text-2xl font-bold text-gray-800 mb-4'>📋 Lista de Clientes</h1>
         <div className='mb-4'>
-          <input type='text' placeholder='🔍 Buscar por nombre, teléfono o cédula...'
-                 value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                 className='form-input' />
+          <input 
+            type='text' 
+            placeholder='🔍 Buscar por nombre, teléfono o cédula...'
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className='form-input' 
+          />
         </div>
         <p className='text-gray-600'>
           Total: <strong>{filteredClientes.length}</strong> cliente{filteredClientes.length !== 1 ? 's' : ''}
@@ -74,19 +77,52 @@ export default function ClientesPage() {
           title={searchTerm ? 'No se encontraron resultados' : 'No hay clientes'}
           message={searchTerm 
             ? `No se encontraron clientes que coincidan con "${searchTerm}"`
-            : 'No tienes clientes registrados. ¡Crea tu primer cliente para empezar!'
+            : 'No tienes clientes registrados. Crea nuevos clientes desde la sección de Préstamos.'
           }
-          action={!searchTerm && (
-            <Link to='/clientes/nuevo' className='btn btn-primary'>
-              ➕ Crear Primer Cliente
-            </Link>
-          )}
         />
       ) : (
-        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'>
-          {filteredClientes.map(cliente => (
-            <ClienteCard key={cliente.id} cliente={cliente} />
-          ))}
+        <div className='card'>
+          <div style={{ overflowX: 'auto' }}>
+            <table className='data-table'>
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Cédula</th>
+                  <th>Estado</th>
+                  <th style={{ width: '100px', textAlign: 'center' }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredClientes.map(cliente => (
+                  <tr key={cliente.id}>
+                    <td>
+                      <strong>{cliente.nombre}</strong>
+                      <br />
+                      <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                        📞 {cliente.telefono}
+                      </span>
+                    </td>
+                    <td>{cliente.cedula || '—'}</td>
+                    <td>
+                      {cliente.activo ? (
+                        <span className='badge badge-success'>✓ Activo</span>
+                      ) : (
+                        <span className='badge badge-secondary'>Inactivo</span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <Link 
+                        to={`/clientes/${cliente.id}`} 
+                        className='btn btn-primary btn-sm'
+                      >
+                        👁️ Ver
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

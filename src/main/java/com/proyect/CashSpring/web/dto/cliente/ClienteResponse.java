@@ -14,5 +14,9 @@ public record ClienteResponse(
         Instant updatedAt,
         // Coordenadas extraídas del link (null si el link es corto o no parseable)
         Double latitud,
-        Double longitud
+        Double longitud,
+        // URLs de navegación generadas
+        String googleMapsUrl,
+        String wazeUrl,
+        String whatsappLocationUrl
 ) {}

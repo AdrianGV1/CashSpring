@@ -1,6 +1,4 @@
-﻿@import 'leaflet/dist/leaflet.css';
-
-* {
+﻿* {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -430,16 +428,16 @@ a {
   overflow-x: auto;
 }
 
-.table {
+.table, .data-table {
   width: 100%;
   border-collapse: collapse;
 }
 
-.table thead {
+.table thead, .data-table thead {
   background-color: #f3f4f6;
 }
 
-.table th {
+.table th, .data-table th {
   padding: 0.75rem 1rem;
   text-align: left;
   font-weight: 600;
@@ -447,14 +445,43 @@ a {
   border-bottom: 2px solid #e5e7eb;
 }
 
-.table td {
+.table td, .data-table td {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #e5e7eb;
   color: #1f2937;
 }
 
-.table tbody tr:hover {
+.table tbody tr:hover, .data-table tbody tr:hover {
   background-color: #f9fafb;
+}
+
+/* Badge styles */
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.badge-success {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.badge-secondary {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.badge-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.badge-danger {
+  background-color: #fee2e2;
+  color: #991b1b;
 }
 
 .row-vencida {

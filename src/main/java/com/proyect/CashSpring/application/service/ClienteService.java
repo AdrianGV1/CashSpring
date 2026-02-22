@@ -69,6 +69,27 @@ public class ClienteService {
 
     private ClienteResponse toResponse(ClienteEntity e) {
         Coordenadas coords = extraerCoordenadas(e.getUbicacion());
+        
+        // DEBUG
+        System.out.println("📍 UBICACIÓN ORIGINAL: " + e.getUbicacion());
+        System.out.println("📍 COORDENADAS EXTRAÍDAS: " + coords);
+        
+        // Generar URLs de navegación si hay coordenadas
+        String googleMapsUrl = null;
+        String wazeUrl = null;
+        String whatsappLocationUrl = null;
+        
+        if (coords != null) {
+            googleMapsUrl = com.proyect.CashSpring.domain.util.MapUrlGenerator.generateGoogleMapsUrl(coords.lat(), coords.lng());
+            wazeUrl = com.proyect.CashSpring.domain.util.MapUrlGenerator.generateWazeUrl(coords.lat(), coords.lng());
+            whatsappLocationUrl = com.proyect.CashSpring.domain.util.MapUrlGenerator.generateWhatsAppLocationUrl(coords.lat(), coords.lng());
+            System.out.println("✅ URLS GENERADAS:");
+            System.out.println("   Google Maps: " + googleMapsUrl);
+            System.out.println("   Waze: " + wazeUrl);
+        } else {
+            System.out.println("❌ NO SE PUDIERON EXTRAER COORDENADAS");
+        }
+        
         return new ClienteResponse(
                 e.getId(),
                 e.getNombre(),
@@ -80,24 +101,13 @@ public class ClienteService {
                 e.getCreatedAt(),
                 e.getUpdatedAt(),
                 coords != null ? coords.lat() : null,
-                coords != null ? coords.lng() : null
+                coords != null ? coords.lng() : null,
+                googleMapsUrl,
+                wazeUrl,
+                whatsappLocationUrl
         );
     }
 
-    // ----------------------------------------
-    // Parseo de coordenadas desde URLs de Maps
-    // ----------------------------------------
-
-    /**
-     * Extrae lat/lng de cualquier formato soportado:
-     *   lat,lng                      → Decimal directo
-     *   9,36276° N, 83,69524° O     → Decimal con símbolo y dirección (coma como separador decimal)
-     *   9°21'44.2"N 83°41'40.5"W    → Grados Minutos Segundos (DMS)
-     *   ?ll=lat,lng                  → Apple Maps
-     *   ?sll=lat,lng                 → Apple Maps source
-     *   @lat,lng,zoom                → Google Maps web/app
-     *   ?q=lat,lng                   → Google Maps (solo si numérico)
-     */
     private Coordenadas extraerCoordenadas(String ubicacion) {
         if (ubicacion == null || ubicacion.isBlank()) return null;
         String s = ubicacion.trim();
@@ -166,34 +176,35 @@ public class ClienteService {
     /**
      * Formato DMS: "9°21'44.2"N 83°41'40.5"W"
      * También acepta segundos con coma: "44,2"
+     * Acepta múltiples variaciones de símbolos de grado y comillas
      */
     private Coordenadas parseDMS(String s) {
-        java.util.regex.Pattern p = java.util.regex.Pattern.compile(
-            "(\\d+)[\u00b0\\s]+(\\d+)['\'\\s]+(\\d+(?:[.,]\\d+)?)[\"″\\s]*([NSns])" +
-            "[\\s,;]+(\\d+)[\u00b0\\s]+(\\d+)['\'\\s]+(\\d+(?:[.,]\\d+)?)[\"″\\s]*([EWOewo])",
-            java.util.regex.Pattern.CASE_INSENSITIVE
+    java.util.regex.Pattern p = java.util.regex.Pattern.compile(
+        "(\\d+)[°º]\\s*(\\d+)[''′]\\s*(\\d+(?:[.,]\\d+)?)[\"\"″\u201C\u201D\u02BA\\s]*([NSns])" +
+        "[\\s,;]*(\\d+)[°º]\\s*(\\d+)[''′]\\s*(\\d+(?:[.,]\\d+)?)[\"\"″\u201C\u201D\u02BA\\s]*([EWOewo])",
+        java.util.regex.Pattern.CASE_INSENSITIVE
+    );
+    java.util.regex.Matcher m = p.matcher(s.trim());
+    if (!m.find()) return null;
+    try {
+        double lat = dmsADecimal(
+            Double.parseDouble(m.group(1)),
+            Double.parseDouble(m.group(2)),
+            Double.parseDouble(m.group(3).replace(',', '.')),
+            m.group(4)
         );
-        java.util.regex.Matcher m = p.matcher(s.trim());
-        if (!m.find()) return null;
-        try {
-            double lat = dmsADecimal(
-                Double.parseDouble(m.group(1)),
-                Double.parseDouble(m.group(2)),
-                Double.parseDouble(m.group(3).replace(',', '.')),
-                m.group(4)
-            );
-            double lng = dmsADecimal(
-                Double.parseDouble(m.group(5)),
-                Double.parseDouble(m.group(6)),
-                Double.parseDouble(m.group(7).replace(',', '.')),
-                m.group(8)
-            );
-            if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
-            return new Coordenadas(lat, lng);
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        double lng = dmsADecimal(
+            Double.parseDouble(m.group(5)),
+            Double.parseDouble(m.group(6)),
+            Double.parseDouble(m.group(7).replace(',', '.')),
+            m.group(8)
+        );
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+        return new Coordenadas(lat, lng);
+    } catch (NumberFormatException e) {
+        return null;
     }
+}
 
     private double dmsADecimal(double grados, double minutos, double segundos, String direccion) {
         double decimal = grados + minutos / 60.0 + segundos / 3600.0;
@@ -215,13 +226,25 @@ public class ClienteService {
         if (s == null) return null;
         String cleaned = s.trim().replace(" ", "");
         String[] parts = cleaned.split(",");
-        if (parts.length != 2) return null;
+        System.out.println("   parseLatLng - Input: '" + s + "'");
+        System.out.println("   parseLatLng - Cleaned: '" + cleaned + "'");
+        System.out.println("   parseLatLng - Parts: " + java.util.Arrays.toString(parts));
+        if (parts.length != 2) {
+            System.out.println("   parseLatLng - FALLO: No son 2 partes");
+            return null;
+        }
         try {
             double lat = Double.parseDouble(parts[0]);
             double lng = Double.parseDouble(parts[1]);
-            if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+            System.out.println("   parseLatLng - Lat: " + lat + ", Lng: " + lng);
+            if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                System.out.println("   parseLatLng - FALLO: Fuera de rango");
+                return null;
+            }
+            System.out.println("   parseLatLng - ✅ ÉXITO");
             return new Coordenadas(lat, lng);
         } catch (NumberFormatException ex) {
+            System.out.println("   parseLatLng - FALLO: " + ex.getMessage());
             return null;
         }
     }

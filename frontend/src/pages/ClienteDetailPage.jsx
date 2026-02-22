@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { clienteApi } from '../services/api';
+import Loading from '../components/Loading';
 
 export default function ClienteDetailPage() {
   const { id } = useParams();
@@ -9,6 +9,17 @@ export default function ClienteDetailPage() {
   const [cliente, setCliente] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Form data for editing
+  const [formData, setFormData] = useState({
+    nombre: '',
+    telefono: '',
+    cedula: '',
+    ubicacion: '',
+    notas: ''
+  });
 
   useEffect(() => {
     loadCliente();
@@ -19,6 +30,13 @@ export default function ClienteDetailPage() {
       setLoading(true);
       const response = await clienteApi.getById(id);
       setCliente(response);
+      setFormData({
+        nombre: response.nombre || '',
+        telefono: response.telefono || '',
+        cedula: response.cedula || '',
+        ubicacion: response.ubicacion || '',
+        notas: response.notas || ''
+      });
     } catch (err) {
       setError('Cliente no encontrado');
       console.error(err);
@@ -27,161 +45,270 @@ export default function ClienteDetailPage() {
     }
   };
 
-  const handleDelete = async () => {
-    if (window.confirm('¿Estás seguro de eliminar este cliente?')) {
-      try {
-        await clienteApi.delete(id);
-        navigate('/');
-      } catch (err) {
-        alert('Error al eliminar el cliente');
-        console.error(err);
-      }
+  const handleEdit = () => {
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    // Reset form data to original cliente data
+    setFormData({
+      nombre: cliente.nombre || '',
+      telefono: cliente.telefono || '',
+      cedula: cliente.cedula || '',
+      ubicacion: cliente.ubicacion || '',
+      notas: cliente.notas || ''
+    });
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const response = await clienteApi.update(id, {
+        ...formData,
+        activo: cliente.activo // Keep the same active status
+      });
+      setCliente(response);
+      setIsEditing(false);
+      alert('Cliente actualizado correctamente');
+    } catch (err) {
+      alert('Error al actualizar el cliente');
+      console.error(err);
+    } finally {
+      setSaving(false);
     }
   };
 
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
   if (loading) {
-    return (
-      <div className='text-center'>
-        <div className='spinner'></div>
-        <p className='text-gray-600 mt-4'>Cargando...</p>
-      </div>
-    );
+    return <Loading message="Cargando cliente..." fullScreen={true} />;
   }
 
   if (error || !cliente) {
     return (
       <div className='alert alert-error'>
         <p>{error || 'Cliente no encontrado'}</p>
-        <Link to='/' className='btn btn-primary mt-4'>Volver a la lista</Link>
+        <Link to='/clientes' className='btn btn-primary mt-4'>Volver a la lista</Link>
       </div>
     );
   }
 
   return (
-    <div className='max-w-4xl mx-auto'>
-      <div className='flex justify-between items-center mb-6'>
-        <h1 className='text-2xl font-bold text-gray-800'>Detalles del Cliente</h1>
-        <Link to='/' className='btn btn-secondary'>← Volver</Link>
+    <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <h1 className='text-2xl font-bold text-gray-800'>👤 Información del Cliente</h1>
+        <Link to='/clientes' className='btn btn-secondary'>← Volver</Link>
       </div>
 
       <div className='card'>
-        <div className='grid md:grid-cols-2 gap-6'>
-          <div>
-            <h2 className='text-xl font-bold text-gray-800 mb-4'>{cliente.nombre}</h2>
+        {/* Header with Edit button */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #e5e7eb' }}>
+          <h2 className='text-xl font-bold text-gray-800'>
+            {isEditing ? '✏️ Editando Cliente' : cliente.nombre}
+          </h2>
+          {!isEditing && (
+            <button onClick={handleEdit} className='btn btn-primary'>
+              ✏️ Editar
+            </button>
+          )}
+        </div>
 
-            <div className='space-y-3'>
+        {/* Read-only mode */}
+        {!isEditing ? (
+          <div>
+            <div style={{ display: 'grid', gap: '1.5rem' }}>
               <div>
-                <p className='text-sm text-gray-500'>Teléfono</p>
-                <p className='text-lg'>📞 {cliente.telefono}</p>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>Nombre Completo</p>
+                <p style={{ fontSize: '1.125rem', fontWeight: '600' }}>{cliente.nombre}</p>
               </div>
 
-              {cliente.cedula && (
+              <div>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>Teléfono</p>
+                <p style={{ fontSize: '1.125rem' }}>📞 {cliente.telefono}</p>
+              </div>
+
+              <div>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>Cédula</p>
+                <p style={{ fontSize: '1.125rem' }}>🪪 {cliente.cedula || '—'}</p>
+              </div>
+
+              <div>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>Estado</p>
                 <div>
-                  <p className='text-sm text-gray-500'>Cédula</p>
-                  <p className='text-lg'>🪪 {cliente.cedula}</p>
+                  {cliente.activo ? (
+                    <span className='badge badge-success'>✓ Activo</span>
+                  ) : (
+                    <span className='badge badge-secondary'>Inactivo</span>
+                  )}
+                </div>
+              </div>
+
+              {cliente.ubicacion && (
+                <div>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.75rem' }}>Ubicación</p>
+                  {(cliente.googleMapsUrl || cliente.wazeUrl || cliente.whatsappLocationUrl) ? (
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {cliente.googleMapsUrl && (
+                        <a 
+                          href={cliente.googleMapsUrl} 
+                          target='_blank' 
+                          rel='noopener noreferrer'
+                          className='btn btn-success'
+                        >
+                          🗺️ Google Maps
+                        </a>
+                      )}
+                      {cliente.wazeUrl && (
+                        <a 
+                          href={cliente.wazeUrl} 
+                          target='_blank' 
+                          rel='noopener noreferrer'
+                          className='btn btn-primary'
+                        >
+                          🚗 Waze
+                        </a>
+                      )}
+                      {cliente.whatsappLocationUrl && (
+                        <a 
+                          href={cliente.whatsappLocationUrl} 
+                          target='_blank' 
+                          rel='noopener noreferrer'
+                          className='btn btn-success'
+                        >
+                          💬 WhatsApp
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
+                      {cliente.ubicacion}
+                      <br />
+                      <span style={{ fontSize: '0.75rem' }}>
+                        (No se pudieron generar enlaces de navegación)
+                      </span>
+                    </p>
+                  )}
                 </div>
               )}
 
               {cliente.notas && (
                 <div>
-                  <p className='text-sm text-gray-500'>Notas</p>
-                  <p className='text-gray-700'>{cliente.notas}</p>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>Notas</p>
+                  <p style={{ color: '#374151', whiteSpace: 'pre-wrap' }}>{cliente.notas}</p>
                 </div>
               )}
+            </div>
+          </div>
+        ) : (
+          /* Edit mode */
+          <div>
+            <div style={{ display: 'grid', gap: '1.5rem' }}>
+              <div>
+                <label className='form-label'>
+                  Nombre Completo <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type='text'
+                  name='nombre'
+                  value={formData.nombre}
+                  onChange={handleInputChange}
+                  className='form-input'
+                  required
+                />
+              </div>
 
               <div>
-                <p className='text-sm text-gray-500'>Estado</p>
-                <p>
+                <label className='form-label'>
+                  Teléfono <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type='text'
+                  name='telefono'
+                  value={formData.telefono}
+                  onChange={handleInputChange}
+                  className='form-input'
+                  required
+                />
+              </div>
+
+              <div>
+                <label className='form-label'>Cédula</label>
+                <input
+                  type='text'
+                  name='cedula'
+                  value={formData.cedula}
+                  onChange={handleInputChange}
+                  className='form-input'
+                />
+              </div>
+
+              <div>
+                <label className='form-label'>Estado</label>
+                <div>
                   {cliente.activo ? (
-                    <span className='bg-green-100 text-green-800 px-3 py-1 rounded'>✓ Activo</span>
+                    <span className='badge badge-success'>✓ Activo</span>
                   ) : (
-                    <span className='bg-gray-100 text-gray-800 px-3 py-1 rounded'>Inactivo</span>
+                    <span className='badge badge-secondary'>Inactivo</span>
                   )}
+                  <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                    El estado no se puede modificar desde aquí
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className='form-label'>
+                  Ubicación (URL o coordenadas)
+                </label>
+                <input
+                  type='text'
+                  name='ubicacion'
+                  value={formData.ubicacion}
+                  onChange={handleInputChange}
+                  className='form-input'
+                  placeholder='Ej: https://maps.app.goo.gl/... o 9.322,-83.699'
+                />
+                <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                  Puedes pegar un enlace de Google Maps o coordenadas en formato decimal (lat,lng)
                 </p>
+              </div>
+
+              <div>
+                <label className='form-label'>Notas</label>
+                <textarea
+                  name='notas'
+                  value={formData.notas}
+                  onChange={handleInputChange}
+                  className='form-input'
+                  rows='4'
+                  placeholder='Notas adicionales sobre el cliente...'
+                />
               </div>
             </div>
 
-            {cliente.ubicacion && (
-              <div className='mt-6'>
-                <p className='text-sm text-gray-500 mb-2'>Navegación</p>
-                <div className='flex gap-2 flex-wrap'>
-                  {cliente.googleMapsUrl && (
-                    <a href={cliente.googleMapsUrl} target='_blank' rel='noopener noreferrer'
-                       className='btn btn-success'>🗺️ Google Maps</a>
-                  )}
-                  {cliente.wazeUrl && (
-                    <a href={cliente.wazeUrl} target='_blank' rel='noopener noreferrer'
-                       className='btn btn-primary'>🚗 Waze</a>
-                  )}
-                  {cliente.whatsappLocationUrl && (
-                    <a href={cliente.whatsappLocationUrl} target='_blank' rel='noopener noreferrer'
-                       className='btn btn-success'>💬 Compartir</a>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Action buttons for edit mode */}
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #e5e7eb' }}>
+              <button 
+                onClick={handleSave} 
+                className='btn btn-primary'
+                disabled={saving || !formData.nombre || !formData.telefono}
+              >
+                {saving ? '💾 Guardando...' : '💾 Guardar Cambios'}
+              </button>
+              <button 
+                onClick={handleCancel} 
+                className='btn btn-secondary'
+                disabled={saving}
+              >
+                ✖️ Cancelar
+              </button>
+            </div>
           </div>
-
-          <div>
-            {cliente.latitud && cliente.longitud ? (
-              <div>
-                <p className='text-sm text-gray-500 mb-2'>Ubicación</p>
-                <div className='map-container'>
-                  <MapContainer center={[cliente.latitud, cliente.longitud]} zoom={15}
-                                style={{ height: '100%', width: '100%' }}>
-                    <TileLayer attribution='&copy; OpenStreetMap'
-                               url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' />
-                    <Marker position={[cliente.latitud, cliente.longitud]} />
-                  </MapContainer>
-                </div>
-                <p className='text-xs text-gray-500 mt-2'>
-                  Coordenadas: {cliente.latitud.toFixed(6)}, {cliente.longitud.toFixed(6)}
-                </p>
-                <div className='flex flex-col gap-2 mt-3'>
-                  {cliente.googleMapsUrl && (
-                    <a href={cliente.googleMapsUrl} target='_blank' rel='noopener noreferrer'
-                       className='btn btn-success w-full text-center'>🗺️ Abrir en Google Maps</a>
-                  )}
-                  {cliente.wazeUrl && (
-                    <a href={cliente.wazeUrl} target='_blank' rel='noopener noreferrer'
-                       className='btn btn-primary w-full text-center'>🚗 Abrir en Waze</a>
-                  )}
-                  {cliente.whatsappLocationUrl && (
-                    <a href={cliente.whatsappLocationUrl} target='_blank' rel='noopener noreferrer'
-                       className='btn btn-success w-full text-center'>💬 Compartir por WhatsApp</a>
-                  )}
-                </div>
-              </div>
-            ) : cliente.ubicacion ? (
-              <div>
-                <p className='text-sm text-gray-500 mb-2'>Abrir ubicación en</p>
-                <div className='flex flex-col gap-3'>
-                  {cliente.googleMapsUrl && (
-                    <a href={cliente.googleMapsUrl} target='_blank' rel='noopener noreferrer'
-                       className='btn btn-success w-full text-center'>🗺️ Abrir en Google Maps</a>
-                  )}
-                  {cliente.wazeUrl && (
-                    <a href={cliente.wazeUrl} target='_blank' rel='noopener noreferrer'
-                       className='btn btn-primary w-full text-center'>🚗 Abrir en Waze</a>
-                  )}
-                  {cliente.whatsappLocationUrl && (
-                    <a href={cliente.whatsappLocationUrl} target='_blank' rel='noopener noreferrer'
-                       className='btn btn-success w-full text-center'>💬 Compartir por WhatsApp</a>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className='text-center py-12 bg-gray-50 rounded'>
-                <p className='text-gray-500'>Sin ubicación registrada</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className='flex gap-2 mt-6 pt-6 border-t border-gray-200'>
-          <Link to={/clientes//editar} className='btn btn-primary'>✏️ Editar</Link>
-          <button onClick={handleDelete} className='btn btn-danger'>🗑️ Eliminar</button>
-        </div>
+        )}
       </div>
     </div>
   );
