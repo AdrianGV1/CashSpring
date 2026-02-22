@@ -57,7 +57,7 @@ const PrestamoDetailPage = () => {
 
       // Cargar datos del cliente
       const clienteResp = await clienteApi.getById(prestamoActual.clienteId);
-      setCliente(clienteResp.data);
+      setCliente(clienteResp);
 
     } catch (err) {
       if (!silent) setError('Error al cargar los datos del préstamo');
@@ -225,6 +225,7 @@ const PrestamoDetailPage = () => {
             </p>
           )}
         </div>
+
         {!estaCompleto && (
           <button 
             onClick={() => setShowPagoForm(!showPagoForm)}
@@ -585,8 +586,14 @@ const PrestamoDetailPage = () => {
               </div>
               <div className="info-item">
                 <span className="label">Estado:</span>
-                <span className={`badge badge-${prestamo.estado === 'ACTIVO' ? 'success' : 'secondary'}`}>
-                  {prestamo.estado}
+                <span className={`badge badge-${
+                  prestamo.estado === 'ACTIVO' ? 'success' :
+                  prestamo.estado === 'PAGADO' ? 'info' :
+                  prestamo.estado === 'ATRASADO' ? 'danger' : 'secondary'
+                }`}>
+                  {prestamo.estado === 'ACTIVO' ? 'Activo' :
+                   prestamo.estado === 'PAGADO' ? 'Pagado' :
+                   prestamo.estado === 'ATRASADO' ? 'Atrasado' : prestamo.estado}
                 </span>
               </div>
               <div className="info-item">
