@@ -21,7 +21,7 @@ export default function ClientesPage() {
       setLoading(true);
       setError(null);
       const response = await clienteApi.getAll();
-      setClientes(response.data);
+      setClientes(response);
     } catch (err) {
       setError('Error al cargar clientes. Verifica que el backend esté corriendo.');
       console.error(err);

@@ -1,6 +1,7 @@
 package com.proyect.CashSpring.application.service;
 
 import com.proyect.CashSpring.domain.enums.EstadoCuota;
+import com.proyect.CashSpring.domain.enums.EstadoPrestamo;
 import com.proyect.CashSpring.infrastructure.persistence.entity.CuotaEntity;
 import com.proyect.CashSpring.infrastructure.persistence.entity.PagoEntity;
 import com.proyect.CashSpring.infrastructure.persistence.entity.PrestamoEntity;
@@ -106,6 +107,13 @@ public class PagoService {
             // No alcanza para cubrir ni la más próxima: abono parcial a ella
             masProxima.setMontoCancelado(masProxima.getMontoCancelado() + restante);
             restante = 0;
+        }
+
+        // Si todas las cuotas están cubiertas, marcar el préstamo como PAGADO
+        boolean todasCubiertas = !prestamo.getCuotas().isEmpty() &&
+                prestamo.getCuotas().stream().allMatch(c -> c.getEstado() == EstadoCuota.CUBIERTA);
+        if (todasCubiertas) {
+            prestamo.setEstado(EstadoPrestamo.PAGADO);
         }
 
         // Guardar cambios en cuotas (cascade desde prestamo)

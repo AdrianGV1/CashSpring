@@ -19,7 +19,8 @@ const PrestamoCard = ({ prestamo, clienteNombre }) => {
   const getEstadoBadge = (estado) => {
     const badges = {
       ACTIVO: { class: 'badge-success', text: 'Activo' },
-      FINALIZADO: { class: 'badge-secondary', text: 'Finalizado' },
+      PAGADO: { class: 'badge-info', text: 'Pagado' },
+      ATRASADO: { class: 'badge-danger', text: 'Atrasado' },
       CANCELADO: { class: 'badge-danger', text: 'Cancelado' }
     };
     const badge = badges[estado] || { class: 'badge-secondary', text: estado };
@@ -35,7 +36,7 @@ const PrestamoCard = ({ prestamo, clienteNombre }) => {
     return tipos[tipo] || tipo;
   };
 
-  const esFinalizado = prestamo.estado === 'FINALIZADO';
+  const esFinalizado = prestamo.estado === 'PAGADO';
 
   return (
     <div

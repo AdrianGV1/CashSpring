@@ -18,7 +18,7 @@ export default function ClienteDetailPage() {
     try {
       setLoading(true);
       const response = await clienteApi.getById(id);
-      setCliente(response.data);
+      setCliente(response);
     } catch (err) {
       setError('Cliente no encontrado');
       console.error(err);

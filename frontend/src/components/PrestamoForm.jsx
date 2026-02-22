@@ -75,7 +75,7 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
     setVerificandoCedula(true);
     try {
       const response = await clienteApi.getAll();
-      const clientes = response.data || [];
+      const clientes = response || [];
       const existe = clientes.some(
         (c) => c.cedula && c.cedula.toLowerCase() === cedula.toLowerCase()
       );

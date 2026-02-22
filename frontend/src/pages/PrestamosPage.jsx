@@ -87,10 +87,10 @@ const PrestamosPage = () => {
             Activos ({prestamos.filter(p => p.estado === 'ACTIVO').length})
           </button>
           <button 
-            className={`filter-btn ${filtro === 'FINALIZADO' ? 'active' : ''}`}
-            onClick={() => setFiltro('FINALIZADO')}
+            className={`filter-btn ${filtro === 'PAGADO' ? 'active' : ''}`}
+            onClick={() => setFiltro('PAGADO')}
           >
-            Finalizados ({prestamos.filter(p => p.estado === 'FINALIZADO').length})
+            Pagados ({prestamos.filter(p => p.estado === 'PAGADO').length})
           </button>
         </div>
       </div>

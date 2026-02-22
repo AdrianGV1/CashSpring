@@ -23,7 +23,7 @@ export default function ClienteFormPage() {
     try {
       setLoading(true);
       const response = await clienteApi.getById(id);
-      setInitialData(response.data);
+      setInitialData(response);
     } catch (err) {
       setError('Error al cargar el cliente');
       console.error(err);
