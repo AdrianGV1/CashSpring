@@ -3,15 +3,15 @@ import { clienteApi } from '../services/api';
 
 const TIPO_ACUERDO_INFO = {
   PENALIZACION_POR_DIA: {
-    label: 'Penalizacion por dia',
+    label: 'QUINCENA ÚNICA',
     desc: '1 cuota a 15 dias. Total = monto + monto x interes.',
   },
   PAGO_EN_MES: {
-    label: 'Pago en mes',
+    label: 'VARIAS QUINCENAS',
     desc: 'De 2 a 10 quincenas. Cada cuota = (principal / N) + (monto x interes). La ultima cuota absorbe el residuo del principal.',
   },
   QUINCENAS_DOBLES: {
-    label: 'Quincenas dobles',
+    label: 'DOBLE',
     desc: 'Total = monto x 2. Indica el monto de cada cuota; la ultima cuota sera el residuo.',
   },
 };

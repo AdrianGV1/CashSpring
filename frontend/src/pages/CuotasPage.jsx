@@ -7,7 +7,7 @@ const CuotasPage = () => {
   const [cuotas, setCuotas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filtro, setFiltro] = useState('TODOS');
+  const [filtro, setFiltro] = useState('PENDIENTE');
   const navigate = useNavigate();
 
   useEffect(() => {

@@ -262,6 +262,15 @@ const PrestamoDetailPage = () => {
     return new Date(dateString).toLocaleDateString('es-CR');
   };
 
+  const getTipoAcuerdoText = (tipo) => {
+    const tipos = {
+      PENALIZACION_POR_DIA: 'QUINCENA ÚNICA',
+      PAGO_EN_MES: 'VARIAS QUINCENAS',
+      QUINCENAS_DOBLES: 'DOBLE',
+    };
+    return tipos[tipo] || tipo;
+  };
+
   const getEstadoCuotaBadge = (estado) => {
     const badges = {
       PENDIENTE: { class: 'badge-warning', text: 'Pendiente' },
@@ -858,7 +867,7 @@ const PrestamoDetailPage = () => {
               </div>
               <div className="info-item">
                 <span className="label">Tipo de Acuerdo:</span>
-                <span className="value">{prestamo.tipoAcuerdo}</span>
+                <span className="value">{getTipoAcuerdoText(prestamo.tipoAcuerdo)}</span>
               </div>
               <div className="info-item">
                 <span className="label">Fecha Inicio:</span>
