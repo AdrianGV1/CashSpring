@@ -4,7 +4,7 @@ import { prestamoApi } from '../services/prestamoApi';
 import { cuotaApi } from '../services/cuotaApi';
 import { pagoApi } from '../services/pagoApi';
 import { clienteApi } from '../services/api';
-import { isSupervisor } from '../services/authHelper';
+import { isSupervisor, isAdmin } from '../services/authHelper';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 
 const PrestamoDetailPage = () => {
@@ -30,6 +30,7 @@ const PrestamoDetailPage = () => {
     notas: ''
   });
   const [pagoError, setPagoError] = useState(null);
+  const [reverting, setReverting] = useState(null);
   const [showLiquidarForm, setShowLiquidarForm] = useState(false);
   const [liquidarLoading, setLiquidarLoading] = useState(false);
   const [liquidarError, setLiquidarError] = useState(null);
@@ -125,6 +126,31 @@ const PrestamoDetailPage = () => {
     } catch (err) {
       setPagoError('Error al registrar el pago. Verifica los datos.');
       console.error(err);
+    }
+  };
+
+  const handleRevertirPago = async (pagoId) => {
+    const confirmar = window.confirm(
+      '⚠️ ¿Está seguro de que desea revertir este pago?\n\n' +
+      'Esta acción:\n' +
+      '- Eliminará el pago del sistema\n' +
+      '- Revertirá las cuotas que fueron cubiertas por este pago\n' +
+      '- Actualizará el estado del préstamo si es necesario\n\n' +
+      'Esta acción NO se puede deshacer.'
+    );
+
+    if (!confirmar) return;
+
+    try {
+      setReverting(pagoId);
+      await pagoApi.revertir(pagoId);
+      alert('✅ Pago revertido exitosamente.\n\nLas cuotas han sido restauradas a su estado anterior.');
+      await loadData();
+    } catch (err) {
+      console.error('Error al revertir pago:', err);
+      alert('❌ Error al revertir el pago: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setReverting(null);
     }
   };
 
@@ -947,7 +973,9 @@ const PrestamoDetailPage = () => {
                   <tr>
                     <th>Fecha</th>
                     <th>Monto</th>
+                    <th>Estado</th>
                     <th>Notas</th>
+                    {isAdmin() && <th>Acciones</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -955,7 +983,30 @@ const PrestamoDetailPage = () => {
                     <tr key={pago.pagoId}>
                       <td>{formatDate(pago.fechaPago)}</td>
                       <td className="success">{formatMoney(pago.monto)}</td>
+                      <td>
+                        {pago.estadoAprobacion === 'APROBADO' ? (
+                          <span className="badge badge-success">✅ Aprobado</span>
+                        ) : (
+                          <span className="badge badge-warning">⏳ En Espera</span>
+                        )}
+                      </td>
                       <td>{pago.notas || '-'}</td>
+                      {isAdmin() && (
+                        <td>
+                          {pago.estadoAprobacion === 'APROBADO' ? (
+                            <button
+                              onClick={() => handleRevertirPago(pago.pagoId)}
+                              disabled={reverting === pago.pagoId}
+                              className="btn btn-sm btn-danger"
+                              title="Revertir este pago"
+                            >
+                              {reverting === pago.pagoId ? '⏳' : '↩️'} Revertir
+                            </button>
+                          ) : (
+                            <span className="text-muted" style={{ fontSize: '0.85rem' }}>Pendiente de aprobación</span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

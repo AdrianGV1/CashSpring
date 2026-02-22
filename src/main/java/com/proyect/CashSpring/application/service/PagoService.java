@@ -119,6 +119,51 @@ public class PagoService {
         pagoRepo.delete(pago);
     }
 
+    @Transactional
+    public void revertirPago(Long pagoId) {
+        // 0. Validar que el pago existe y está APROBADO
+        PagoEntity pago = pagoRepo.findById(pagoId)
+                .orElseThrow(() -> new IllegalArgumentException("Pago no encontrado: " + pagoId));
+
+        if (pago.getEstadoAprobacion() != EstadoAprobacionPago.APROBADO) {
+            throw new IllegalArgumentException("Solo se pueden revertir pagos aprobados. Use rechazar para pagos en espera.");
+        }
+
+        PrestamoEntity prestamo = pago.getPrestamo();
+
+        // 1. Obtener todos los pagos APROBADOS del préstamo, EXCEPTO el que vamos a revertir
+        List<PagoEntity> pagosRestantes = pagoRepo.findByPrestamoIdOrderByFechaPagoAsc(prestamo.getId())
+                .stream()
+                .filter(p -> p.getEstadoAprobacion() == EstadoAprobacionPago.APROBADO)
+                .filter(p -> !p.getId().equals(pagoId))
+                .sorted(Comparator.comparing(PagoEntity::getFechaPago))
+                .collect(java.util.stream.Collectors.toList());
+
+        // 2. Resetear TODAS las cuotas del préstamo a estado inicial
+        for (CuotaEntity cuota : prestamo.getCuotas()) {
+            cuota.setMontoCancelado(0L);
+            cuota.setEstado(EstadoCuota.PENDIENTE);
+            cuota.setFechaCubierta(null);
+        }
+
+        // 3. Resetear estado del préstamo
+        prestamo.setEstado(EstadoPrestamo.ACTIVO);
+
+        // 4. Eliminar el pago que queremos revertir
+        pagoRepo.delete(pago);
+
+        // 5. Guardar el préstamo con las cuotas reseteadas
+        prestamoRepo.save(prestamo);
+
+        // 6. Volver a aplicar todos los pagos restantes en orden cronológico
+        for (PagoEntity pagoRestante : pagosRestantes) {
+            procesarCuotasConPago(prestamo, pagoRestante.getMonto(), pagoRestante.getFechaPago());
+        }
+
+        // 7. Guardar el estado final
+        prestamoRepo.save(prestamo);
+    }
+
     private void procesarCuotasConPago(PrestamoEntity prestamo, Long montoPago, LocalDate fechaPago) {
         // Cuotas pendientes ordenadas de más antigua (menor número) a más reciente
         List<CuotaEntity> pendientesAsc = prestamo.getCuotas().stream()

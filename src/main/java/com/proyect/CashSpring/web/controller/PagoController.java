@@ -67,4 +67,12 @@ public class PagoController {
     public void rechazar(@PathVariable Long pagoId) {
         pagoService.rechazarPago(pagoId);
     }
+
+    // DELETE /api/pagos/{pagoId}/revertir -> Revertir pago aprobado (solo admin)
+    @DeleteMapping("/pagos/{pagoId}/revertir")
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revertir(@PathVariable Long pagoId) {
+        pagoService.revertirPago(pagoId);
+    }
 }

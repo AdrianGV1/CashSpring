@@ -64,5 +64,9 @@ export const pagoApi = {
 
   rechazar: async (pagoId) => {
     await axiosInstance.delete(`/pagos/${pagoId}/rechazar`);
+  },
+
+  revertir: async (pagoId) => {
+    await axiosInstance.delete(`/pagos/${pagoId}/revertir`);
   }
 };

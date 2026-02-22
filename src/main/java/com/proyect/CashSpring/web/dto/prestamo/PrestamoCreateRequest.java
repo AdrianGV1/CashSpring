@@ -11,16 +11,15 @@ public class PrestamoCreateRequest {
 
     private Long clienteId;
 
-    @NotNull
+    // Los campos del cliente son opcionales aquí porque:
+    // - Si clienteId != null -> se usa cliente existente, no se necesitan estos campos
+    // - Si clienteId == null -> se crea nuevo cliente, el servicio valida que estos campos estén
     private String nombre;
 
-    @NotNull
     private String telefono;
 
-    @NotNull
     private String cedula;
 
-    @NotNull
     private String ubicacion;
 
     private String notas;
