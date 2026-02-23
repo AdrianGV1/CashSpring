@@ -159,6 +159,18 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'cedula') {
+      const filtered = value.replace(/\D/g, '').slice(0, 9);
+      setFormData((prev) => ({ ...prev, [name]: filtered }));
+      if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+      return;
+    }
+    if (name === 'telefono') {
+      const filtered = value.replace(/\D/g, '').slice(0, 8);
+      setFormData((prev) => ({ ...prev, [name]: filtered }));
+      if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+      return;
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
   };
@@ -183,8 +195,10 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
     // Validar campos del cliente solo si es modo "nuevo"
     if (clienteMode === 'nuevo') {
       if (!formData.cedula.trim()) e.cedula = 'La cedula es obligatoria.';
+      else if (formData.cedula.trim().length !== 9) e.cedula = 'La cédula debe tener exactamente 9 dígitos.';
       if (!formData.nombre.trim()) e.nombre = 'El nombre completo es obligatorio.';
       if (!formData.telefono.trim()) e.telefono = 'El telefono es obligatorio.';
+      else if (formData.telefono.trim().length !== 8) e.telefono = 'El teléfono debe tener exactamente 8 dígitos.';
       if (!formData.ubicacion.trim()) e.ubicacion = 'La ubicacion es obligatoria.';
     } else if (clienteMode === 'existente') {
       // Validar que se haya seleccionado un cliente
@@ -383,7 +397,9 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
                 value={formData.cedula}
                 onChange={handleChange}
                 onBlur={handleCedulaBlur}
-                placeholder="Ej: 1-2345-6789"
+                placeholder="Ej: 123456789"
+                maxLength={9}
+                inputMode="numeric"
                 style={inputStyle('cedula')}
                 disabled={!!initialData}
               />
@@ -412,7 +428,9 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
                   name="telefono"
                   value={formData.telefono}
                   onChange={handleChange}
-                  placeholder="Ej: 8888-9999"
+                  placeholder="Ej: 88889999"
+                  maxLength={8}
+                  inputMode="numeric"
                   style={inputStyle('telefono')}
                 />
                 {errors.telefono && <small style={{ color: '#dc3545' }}>{errors.telefono}</small>}
@@ -540,6 +558,7 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
               name="fechaInicio"
               value={formData.fechaInicio}
               onChange={handleChange}
+              min={new Date().toISOString().split('T')[0]}
               style={inputStyle('fechaInicio')}
             />
             {errors.fechaInicio && <small style={{ color: '#dc3545' }}>{errors.fechaInicio}</small>}

@@ -141,6 +141,16 @@ export default function ClienteDetailPage() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'cedula') {
+      const filtered = value.replace(/\D/g, '').slice(0, 9);
+      setFormData(prev => ({ ...prev, [name]: filtered }));
+      return;
+    }
+    if (name === 'telefono') {
+      const filtered = value.replace(/\D/g, '').slice(0, 8);
+      setFormData(prev => ({ ...prev, [name]: filtered }));
+      return;
+    }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -299,6 +309,8 @@ export default function ClienteDetailPage() {
                   value={formData.telefono}
                   onChange={handleInputChange}
                   className='form-input'
+                  maxLength={8}
+                  inputMode='numeric'
                   required
                 />
               </div>
@@ -311,6 +323,8 @@ export default function ClienteDetailPage() {
                   value={formData.cedula}
                   onChange={handleInputChange}
                   className='form-input'
+                  maxLength={9}
+                  inputMode='numeric'
                 />
               </div>
 

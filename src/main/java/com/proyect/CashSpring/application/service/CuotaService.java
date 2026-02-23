@@ -13,7 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class CuotaService {
@@ -32,30 +35,43 @@ public class CuotaService {
         PrestamoEntity prestamo = prestamoRepo.findById(prestamoId)
                 .orElseThrow(() -> new IllegalArgumentException("Préstamo no encontrado: " + prestamoId));
 
-        // Verificar si el préstamo es del tipo QUINCENAS_DOBLES y si el cliente ha pagado al menos el 50%
+        // Verificar si el préstamo es del tipo QUINCENAS_DOBLES
         if (prestamo.getTipoAcuerdo() != TipoAcuerdo.QUINCENAS_DOBLES) {
             throw new IllegalArgumentException("Solo los préstamos con acuerdo QUINCENAS_DOBLES pueden ser extendidos.");
         }
 
         // Verificar que el cliente haya pagado al menos el 50% de la deuda
         long montoPagado = prestamo.getPagos().stream().mapToLong(pago -> pago.getMonto()).sum();
-        long montoAdeudado = prestamo.getTotalObjetivo() - montoPagado;
         if (montoPagado < (prestamo.getTotalObjetivo() / 2)) {
             throw new IllegalArgumentException("Debe haber pagado al menos el 50% del préstamo para poder extenderlo.");
         }
+
+        // Identificar la cuota más próxima (la siguiente a pagar = menor número entre PENDIENTES)
+        Optional<CuotaEntity> masProxima = prestamo.getCuotas().stream()
+                .filter(c -> c.getEstado() == EstadoCuota.PENDIENTE)
+                .min(Comparator.comparing(CuotaEntity::getNumeroCuota));
+
+        // Cuotas con abono parcial que son LEJANAS (no la más próxima).
+        // Estas son las que recibieron el dinero extra y deben quedar al final tras extender.
+        List<CuotaEntity> cuotasAbonoLejanas = prestamo.getCuotas().stream()
+                .filter(c -> c.getEstado() == EstadoCuota.PENDIENTE
+                        && c.getMontoCancelado() != null
+                        && c.getMontoCancelado() > 0
+                        && (masProxima.isEmpty() || !c.getId().equals(masProxima.get().getId())))
+                .sorted(Comparator.comparing(CuotaEntity::getNumeroCuota))
+                .collect(Collectors.toList());
 
         // Extender el préstamo
         long montoNuevo = prestamo.getMontoPrestado() + montoExtendido;
         long totalNuevo = montoNuevo * 2;
         prestamo.setMontoPrestado(montoNuevo);
         prestamo.setTotalObjetivo(totalNuevo);
-        prestamo.setEsExtendido(true);  // Marcar el préstamo como extendido
+        prestamo.setEsExtendido(true);
 
-        // Crear nuevas cuotas con el nuevo monto
+        // Agregar nuevas cuotas (empezando desde el total actual de cuotas + 1)
         int numeroCuota = prestamo.getCuotas().size() + 1;
-        LocalDate fechaVencimiento = prestamo.getFechaInicio().plusDays(15); // Sumar la primera cuota
-
-        long montoCuota = totalNuevo / 13; // Ejemplo de 13 cuotas
+        LocalDate fechaVencimiento = prestamo.getFechaInicio().plusDays(15);
+        long montoCuota = totalNuevo / 13;
 
         for (int i = numeroCuota; i <= 13; i++) {
             CuotaEntity cuota = CuotaEntity.builder()
@@ -68,6 +84,32 @@ public class CuotaService {
                     .build();
             prestamo.getCuotas().add(cuota);
             fechaVencimiento = fechaVencimiento.plusDays(15);
+        }
+
+        // Reubicar cuotas lejanas con abono parcial al final de la lista
+        if (!cuotasAbonoLejanas.isEmpty()) {
+            // Cuotas que NO son lejanas con abono, ordenadas por número
+            List<CuotaEntity> cuotasBase = prestamo.getCuotas().stream()
+                    .filter(c -> !cuotasAbonoLejanas.contains(c))
+                    .sorted(Comparator.comparing(CuotaEntity::getNumeroCuota))
+                    .collect(Collectors.toList());
+
+            // Obtener la última fecha de vencimiento de las cuotas base
+            LocalDate ultimaFechaBase = cuotasBase.stream()
+                    .max(Comparator.comparing(CuotaEntity::getFechaVencimiento))
+                    .map(CuotaEntity::getFechaVencimiento)
+                    .orElse(prestamo.getFechaInicio());
+
+            // Renumerar: primero las base, luego las lejanas con abono
+            int num = 1;
+            for (CuotaEntity c : cuotasBase) {
+                c.setNumeroCuota(num++);
+            }
+            for (CuotaEntity c : cuotasAbonoLejanas) {
+                ultimaFechaBase = ultimaFechaBase.plusDays(15);
+                c.setNumeroCuota(num++);
+                c.setFechaVencimiento(ultimaFechaBase);
+            }
         }
 
         // Guardar los cambios

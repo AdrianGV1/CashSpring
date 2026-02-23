@@ -12,6 +12,7 @@ const PrestamosPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filtro, setFiltro] = useState('TODOS');
+  const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -25,7 +26,8 @@ const PrestamosPage = () => {
       if (!silent) setLoading(true);
       if (!silent) setError(null);
       const data = await prestamoApi.getAll();
-      setPrestamos(data);
+      const sorted = [...data].sort((a, b) => b.prestamoId - a.prestamoId);
+      setPrestamos(sorted);
     } catch (err) {
       if (!silent) setError('Error al cargar préstamos. Verifica que el backend esté corriendo.');
       console.error(err);
@@ -34,10 +36,19 @@ const PrestamosPage = () => {
     }
   };
 
-  const prestamosFiltrados = prestamos.filter(prestamo => {
-    if (filtro === 'TODOS') return true;
-    return prestamo.estado === filtro;
-  });
+  const prestamosFiltrados = prestamos
+    .filter(prestamo => {
+      if (filtro === 'TODOS') return true;
+      return prestamo.estado === filtro;
+    })
+    .filter(prestamo => {
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      return (
+        (prestamo.clienteNombre || '').toLowerCase().includes(term) ||
+        String(prestamo.prestamoId).includes(term)
+      );
+    });
 
   if (loading) {
     return <Loading message="Cargando préstamos..." fullScreen={true} />;
@@ -59,49 +70,64 @@ const PrestamosPage = () => {
 
   return (
     <div className="container">
-      <div className="page-header">
-        <div>
-          <h1>Préstamos</h1>
-          <p className="subtitle">Gestiona los préstamos de tus clientes</p>
+      <div className='mb-8'>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h1 className='text-2xl font-bold text-gray-800'>💰 Lista de Préstamos</h1>
+          <button
+            onClick={() => navigate('/prestamos/nuevo')}
+            className="btn btn-primary"
+          >
+            + Nuevo Préstamo
+          </button>
         </div>
-        <button 
-          onClick={() => navigate('/prestamos/nuevo')}
-          className="btn btn-primary"
-        >
-          + Nuevo Préstamo
-        </button>
+        <div className='mb-4'>
+          <input
+            type="text"
+            placeholder="🔍 Buscar por nombre de cliente o # de préstamo..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="form-input"
+          />
+        </div>
+        <p className='text-gray-600'>
+          Total: <strong>{prestamosFiltrados.length}</strong> préstamo{prestamosFiltrados.length !== 1 ? 's' : ''}
+        </p>
       </div>
 
       <div className="filters-bar">
         <div className="filter-buttons">
-          <button 
-            className={`filter-btn ${filtro === 'TODOS' ? 'active' : ''}`}
-            onClick={() => setFiltro('TODOS')}
-          >
-            Todos ({prestamos.length})
-          </button>
-          <button 
-            className={`filter-btn ${filtro === 'ACTIVO' ? 'active' : ''}`}
-            onClick={() => setFiltro('ACTIVO')}
-          >
-            Activos ({prestamos.filter(p => p.estado === 'ACTIVO').length})
-          </button>
-          <button 
-            className={`filter-btn ${filtro === 'PAGADO' ? 'active' : ''}`}
-            onClick={() => setFiltro('PAGADO')}
-          >
-            Pagados ({prestamos.filter(p => p.estado === 'PAGADO').length})
-          </button>
+          {[
+            { key: 'TODOS',     label: 'Todos',      cls: 'filter-btn-gray'  },
+            { key: 'ACTIVO',    label: 'Activos',    cls: 'filter-btn-gray'  },
+            { key: 'PAGADO',    label: 'Pagados',    cls: 'filter-btn-green' },
+            { key: 'LIQUIDADO', label: 'Liquidados', cls: 'filter-btn-blue'  },
+            { key: 'ATRASADO',  label: 'Atrasados',  cls: 'filter-btn-red'   },
+          ].map(({ key, label, cls }) => {
+            const base = prestamos.filter(p => !searchTerm || (p.clienteNombre || '').toLowerCase().includes(searchTerm.toLowerCase()) || String(p.prestamoId).includes(searchTerm));
+            const count = key === 'TODOS' ? base.length : base.filter(p => p.estado === key).length;
+            return (
+              <button
+                key={key}
+                className={`filter-btn ${cls} ${filtro === key ? 'active' : ''}`}
+                onClick={() => setFiltro(key)}
+              >
+                {label} ({count})
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {prestamosFiltrados.length === 0 ? (
         <EmptyState
-          icon="💰"
-          title={`No hay préstamos ${filtro !== 'TODOS' ? filtro.toLowerCase() + 's' : ''}`}
-          message={filtro === 'TODOS' 
-            ? 'Aún no tienes préstamos registrados. ¡Crea tu primer préstamo para comenzar!' 
-            : `No hay préstamos en estado ${filtro.toLowerCase()}`
+          icon={searchTerm ? '🔍' : '💰'}
+          title={searchTerm ? 'No se encontraron resultados' : `No hay préstamos${filtro !== 'TODOS' ? ` ${filtro.toLowerCase()}s` : ''}`}
+          message={
+            searchTerm
+              ? `No se encontraron préstamos que coincidan con "${searchTerm}"`
+              : filtro === 'TODOS'
+              ? 'Aún no tienes préstamos registrados. ¡Crea tu primer préstamo para comenzar!'
+              : `No hay préstamos en estado ${filtro.toLowerCase()}`
           }
           action={
             <button 

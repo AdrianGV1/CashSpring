@@ -18,8 +18,9 @@ const PrestamoCard = ({ prestamo, clienteNombre }) => {
 
   const getEstadoBadge = (estado) => {
     const badges = {
-      ACTIVO: { class: 'badge-success', text: 'Activo' },
-      PAGADO: { class: 'badge-info', text: 'Pagado' },
+      ACTIVO: { class: 'badge-secondary', text: 'Activo' },
+      PAGADO: { class: 'badge-success', text: 'Pagado' },
+      LIQUIDADO: { class: 'badge-info', text: 'Liquidado' },
       ATRASADO: { class: 'badge-danger', text: 'Atrasado' },
       CANCELADO: { class: 'badge-danger', text: 'Cancelado' }
     };
@@ -36,14 +37,37 @@ const PrestamoCard = ({ prestamo, clienteNombre }) => {
     return tipos[tipo] || tipo;
   };
 
-  const esFinalizado = prestamo.estado === 'PAGADO';
+  const esActivo = prestamo.estado === 'ACTIVO';
+  const esPagado = prestamo.estado === 'PAGADO';
+  const esLiquidado = prestamo.estado === 'LIQUIDADO';
+  const esAtrasado = prestamo.estado === 'ATRASADO';
+
+  const cardBorderStyle = esPagado
+    ? { border: '2px solid #10b981', opacity: 0.92 }
+    : esLiquidado
+    ? { border: '2px solid #3b82f6', opacity: 0.92 }
+    : esAtrasado
+    ? { border: '2px solid #ef4444', opacity: 0.92 }
+    : esActivo
+    ? { border: '2px solid #9ca3af', opacity: 0.92 }
+    : {};
+
+  const cardHeaderBg = esPagado
+    ? { background: '#f0fdf4' }
+    : esLiquidado
+    ? { background: '#eff6ff' }
+    : esAtrasado
+    ? { background: '#fef2f2' }
+    : esActivo
+    ? { background: '#f3f4f6' }
+    : {};
 
   return (
     <div
       className="card prestamo-card"
-      style={esFinalizado ? { border: '2px solid #10b981', opacity: 0.92 } : {}}
+      style={cardBorderStyle}
     >
-      {esFinalizado && (
+      {esPagado && (
         <div
           style={{
             background: 'linear-gradient(90deg, #10b981, #059669)',
@@ -59,7 +83,55 @@ const PrestamoCard = ({ prestamo, clienteNombre }) => {
           ✔ PRÉSTAMO PAGADO COMPLETO
         </div>
       )}
-      <div className="card-header" style={esFinalizado ? { background: '#f0fdf4' } : {}}>
+      {esLiquidado && (
+        <div
+          style={{
+            background: 'linear-gradient(90deg, #3b82f6, #2563eb)',
+            color: '#fff',
+            textAlign: 'center',
+            fontWeight: 700,
+            fontSize: '0.78rem',
+            padding: '0.3rem 0',
+            letterSpacing: '0.08em',
+            borderRadius: '6px 6px 0 0'
+          }}
+        >
+          💧 PRÉSTAMO LIQUIDADO
+        </div>
+      )}
+      {esActivo && (
+        <div
+          style={{
+            background: 'linear-gradient(90deg, #6b7280, #4b5563)',
+            color: '#fff',
+            textAlign: 'center',
+            fontWeight: 700,
+            fontSize: '0.78rem',
+            padding: '0.3rem 0',
+            letterSpacing: '0.08em',
+            borderRadius: '6px 6px 0 0'
+          }}
+        >
+          ● PRÉSTAMO ACTIVO
+        </div>
+      )}
+      {esAtrasado && (
+        <div
+          style={{
+            background: 'linear-gradient(90deg, #ef4444, #dc2626)',
+            color: '#fff',
+            textAlign: 'center',
+            fontWeight: 700,
+            fontSize: '0.78rem',
+            padding: '0.3rem 0',
+            letterSpacing: '0.08em',
+            borderRadius: '6px 6px 0 0'
+          }}
+        >
+          ⚠ PRÉSTAMO ATRASADO
+        </div>
+      )}
+      <div className="card-header" style={cardHeaderBg}>
         <div>
           <h3>{clienteNombre}</h3>
           <p className="text-muted">Préstamo #{prestamo.prestamoId}</p>

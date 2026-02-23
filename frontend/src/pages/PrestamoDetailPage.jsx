@@ -353,11 +353,27 @@ const PrestamoDetailPage = () => {
           </button>
           
           {!estaCompleto && (
-            <button 
-              onClick={() => setShowPagoForm(!showPagoForm)}
-              className="btn btn-primary"
+            <button
+              onClick={() => {
+                setShowLiquidarForm(!showLiquidarForm);
+                setLiquidarError(null);
+                setShowPagoForm(false);
+                setShowExtensionForm(false);
+              }}
+              style={{
+                padding: '0.5rem 1rem',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                backgroundColor: showLiquidarForm ? '#6c757d' : '#dc3545',
+                color: '#fff',
+                transition: 'background-color 0.2s'
+              }}
+              title="Liquidar el préstamo pagando el capital + 20% de interés"
             >
-              {showPagoForm ? 'Cancelar' : '+ Registrar Pago'}
+              {showLiquidarForm ? 'Cancelar Liquidación' : '💰 Liquidar Préstamo'}
             </button>
           )}
         </div>
@@ -365,28 +381,11 @@ const PrestamoDetailPage = () => {
       
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
         {!estaCompleto && (
-          <button
-            onClick={() => {
-              setShowLiquidarForm(!showLiquidarForm);
-              setLiquidarError(null);
-              setShowPagoForm(false);
-              setShowExtensionForm(false);
-            }}
-            style={{
-              marginLeft: '0.5rem',
-              padding: '0.5rem 1rem',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              backgroundColor: showLiquidarForm ? '#6c757d' : '#dc3545',
-              color: '#fff',
-              transition: 'background-color 0.2s'
-            }}
-            title="Liquidar el préstamo pagando el capital + 20% de interés"
+          <button 
+            onClick={() => setShowPagoForm(!showPagoForm)}
+            className="btn btn-primary"
           >
-            {showLiquidarForm ? 'Cancelar Liquidación' : '💰 Liquidar Préstamo'}
+            {showPagoForm ? 'Cancelar' : '+ Registrar Pago'}
           </button>
         )}
         {prestamo.tipoAcuerdo === 'QUINCENAS_DOBLES' && !prestamo.esExtendido && !estaCompleto && (() => {
@@ -568,6 +567,7 @@ const PrestamoDetailPage = () => {
                   type="date"
                   value={fechaLiquidacion}
                   onChange={(e) => setFechaLiquidacion(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
                   required
                 />
               </div>
@@ -814,6 +814,7 @@ const PrestamoDetailPage = () => {
                     type="date"
                     value={pagoData.fechaPago}
                     onChange={(e) => setPagoData({...pagoData, fechaPago: e.target.value})}
+                    min={new Date().toISOString().split('T')[0]}
                     required
                   />
                 </div>

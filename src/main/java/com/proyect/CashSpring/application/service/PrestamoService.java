@@ -117,13 +117,20 @@ public class PrestamoService {
                     .orElse(montoExtendido * 2);
         }
 
-        // Si se especificó un nuevo monto por cuota, eliminar SOLO las cuotas PENDIENTES
-        // que aún no tienen ningún pago parcial. Las cuotas con pago parcial (montoCancelado > 0)
-        // son intocables: el cliente ya abonó algo sobre ellas y deben liquidarse por su monto original.
+        // Recolectar abonos parciales de cuotas PENDIENTES antes de eliminarlas.
+        // Estos abonos se redistribuirán en las nuevas cuotas (de atrás hacia adelante).
+        long carryOver = 0L;
         if (montoPorCuota != null && montoPorCuota > 0) {
-            prestamo.getCuotas().removeIf(c ->
-                    c.getEstado() == EstadoCuota.PENDIENTE
-                    && (c.getMontoCancelado() == null || c.getMontoCancelado() == 0));
+            carryOver = prestamo.getCuotas().stream()
+                    .filter(c -> c.getEstado() == EstadoCuota.PENDIENTE
+                            && c.getMontoCancelado() != null
+                            && c.getMontoCancelado() > 0)
+                    .mapToLong(CuotaEntity::getMontoCancelado)
+                    .sum();
+
+            // Eliminar TODAS las cuotas PENDIENTES (con o sin abono parcial).
+            // Los abonos parciales se recolocan en las nuevas cuotas mediante el carry-over.
+            prestamo.getCuotas().removeIf(c -> c.getEstado() == EstadoCuota.PENDIENTE);
             // Forzar flush para que los DELETE lleguen a BD ANTES de los INSERT de las nuevas
             // cuotas, evitando violar el unique constraint (prestamo_id, numero_cuota).
             em.flush();
@@ -170,14 +177,15 @@ public class PrestamoService {
                 .orElse(prestamo.getFechaInicio());
 
         // ─── CREAR CUOTAS DE EXTENSIÓN después del bloque activo ───────────────────
-        // Las nuevas cuotas deben cubrir exactamente el saldo no representado por cuotas existentes:
-        //   montoAdicional = totalNuevo - sum(montoObjetivo de TODAS las cuotas que se conservan)
-        // ¿Por qué NO usar (totalNuevo - montoPagado - montoParcialesObjetivo)?
-        //   Porque montoPagado ya incluye los abonos parciales, y montoParcialesObjetivo los volvería
-        //   a descontar, generando una doble resta y un saldo incorrecto.
+        // Las nuevas cuotas cubren el saldo no representado por las cuotas CUBIERTA que se
+        // conservaron: montoAdicional = totalNuevo - sum(montoObjetivo de cuotas mantenidas).
+        // Las cuotas PENDIENTE fueron eliminadas completamente; sus abonos parciales (carryOver)
+        // se redistribuyen en las últimas cuotas nuevas de atrás hacia adelante.
         long montoAdicional;
         if (montoPorCuota != null && montoPorCuota > 0) {
-            // "Kept" = cuotasActivas que sobrevivieron (CUBIERTA + PENDIENTE-parcial) + far-end CUBIERTAs
+            // "Kept" = cuotasActivas que sobrevivieron (solo CUBIERTAs, pues todas las PENDIENTE
+            // fueron eliminadas) + far-end CUBIERTAs. Los abonos parciales ya se capturaron en
+            // carryOver y se redistribuirán en las nuevas cuotas.
             long objetivoKept = java.util.stream.Stream
                     .concat(cuotasActivas.stream(), farEndCubiertas.stream())
                     .mapToLong(CuotaEntity::getMontoObjetivo)
@@ -201,6 +209,7 @@ public class PrestamoService {
         }
 
         LocalDate fechaVencimiento = ultimaFechaActiva.plusDays(15);
+        List<CuotaEntity> nuevasCuotas = new ArrayList<>();
 
         for (int i = 1; i <= numNuevas; i++) {
             long montoCuota = (i < numNuevas) ? mpc : (montoAdicional - mpc * (numNuevas - 1));
@@ -213,7 +222,26 @@ public class PrestamoService {
                     .esCuotaExtendida(true)
                     .build();
             prestamo.getCuotas().add(cuota);
+            nuevasCuotas.add(cuota);
             fechaVencimiento = fechaVencimiento.plusDays(15);
+        }
+
+        // ─── REDISTRIBUIR CARRY-OVER en las nuevas cuotas (de atrás hacia adelante) ─
+        // Los abonos recolectados de cuotas PENDIENTES eliminadas se aplican a las últimas
+        // cuotas nuevas primero. Si el carry-over cubre por completo una cuota, se marca
+        // CUBIERTA; si es parcial, queda como abono en montoCancelado.
+        if (carryOver > 0 && !nuevasCuotas.isEmpty()) {
+            long restante = carryOver;
+            for (int i = nuevasCuotas.size() - 1; i >= 0 && restante > 0; i--) {
+                CuotaEntity nc = nuevasCuotas.get(i);
+                long toApply = Math.min(restante, nc.getMontoObjetivo());
+                nc.setMontoCancelado(toApply);
+                if (toApply >= nc.getMontoObjetivo()) {
+                    nc.setEstado(EstadoCuota.CUBIERTA);
+                    nc.setFechaCubierta(LocalDate.now());
+                }
+                restante -= toApply;
+            }
         }
 
         // ─── REPOSICIONAR las far-end CUBIERTAs al final con nuevas fechas ─────────

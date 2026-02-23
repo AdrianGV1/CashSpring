@@ -1,6 +1,7 @@
 D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\application\service\ClienteService.java
 D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\application\service\CuotaService.java
 D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\application\service\PagoService.java
+D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\application\service\PdfGeneratorService.java
 D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\application\service\PrestamoService.java
 D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\CashSpringApplication.java
 D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\domain\enums\EstadoAprobacionPago.java
@@ -25,6 +26,7 @@ D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\infrastruct
 D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\ClienteController.java
 D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\CuotaController.java
 D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\PagoController.java
+D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\PdfController.java
 D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\PrestamoController.java
 D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\cliente\ClienteCreateRequest.java
 D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\cliente\ClienteResponse.java

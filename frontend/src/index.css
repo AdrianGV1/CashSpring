@@ -116,6 +116,56 @@ body {
 .btn-sm { padding: 0.5rem 1rem; font-size: 0.875rem; }
 .btn-block { width: 100%; }
 
+/* Page header spacing */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.page-header h1 { margin: 0 0 0.25rem 0; }
+.page-header .subtitle { margin: 0; }
+
+/* Filter bar spacing */
+.filters-bar {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+/* Filter buttons */
+.filter-btn {
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.375rem;
+  border: 2px solid transparent;
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.18s;
+  background: #f3f4f6;
+  color: #374151;
+  white-space: nowrap;
+}
+.filter-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+
+.filter-btn-gray { border-color: #9ca3af; background: #f3f4f6; color: #374151; }
+.filter-btn-gray.active { background: #6b7280; border-color: #6b7280; color: #fff; }
+
+.filter-btn-red { border-color: #fca5a5; background: #fff1f1; color: #dc2626; }
+.filter-btn-red.active { background: #ef4444; border-color: #ef4444; color: #fff; }
+
+.filter-btn-green { border-color: #6ee7b7; background: #f0fdf4; color: #059669; }
+.filter-btn-green.active { background: #10b981; border-color: #10b981; color: #fff; }
+
+.filter-btn-blue { border-color: #93c5fd; background: #eff6ff; color: #2563eb; }
+.filter-btn-blue.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+
+.filter-buttons { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+
 .card {
   background: white;
   border-radius: 0.5rem;
