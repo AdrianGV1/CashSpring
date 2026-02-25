@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { clienteApi } from '../services/api';
-import { prestamoApi } from '../services/prestamoApi';
-import { cuotaApi } from '../services/cuotaApi';
+import api from '../services/api';
 import { pagoApi } from '../services/pagoApi';
 import { reporteApi } from '../services/reporteApi';
 import { isAdmin } from '../services/authHelper';
@@ -10,6 +8,46 @@ import Loading from '../components/Loading';
 import EmptyState from '../components/EmptyState';
 import { Alert } from '../components/Alert';
 import useAutoRefresh from '../hooks/useAutoRefresh';
+import { getCacheWithTTL, setCacheWithTTL } from '../services/cache';
+
+const CACHE_KEY = 'dashboard_summary_v1';
+const TTL_MS = 5 * 60 * 1000; // 5 minutos
+
+// ✅ Mapea diferentes nombres de campos (por si tu backend usa otros)
+function mapSummaryToStats(summary) {
+  return {
+    totalClientes:
+      summary.clientesActivos ??
+      summary.totalClientes ??
+      summary.totalClientesActivos ??
+      0,
+
+    totalPrestamosActivos:
+      summary.prestamosActivos ??
+      summary.totalPrestamosActivos ??
+      0,
+
+    cuotasPendientes:
+      summary.cuotasPendientes ??
+      summary.totalCuotasPendientes ??
+      0,
+
+    cuotasVencidas:
+      summary.cuotasVencidas ??
+      summary.totalCuotasVencidas ??
+      0,
+
+    totalPorCobrar:
+      summary.totalPorCobrar ??
+      summary.porCobrar ??
+      0,
+
+    totalRecaudado:
+      summary.totalRecaudado ??
+      summary.recaudado ??
+      0
+  };
+}
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -20,17 +58,19 @@ const Dashboard = () => {
     totalPorCobrar: 0,
     totalRecaudado: 0
   });
+
   const [loading, setLoading] = useState(true);
-  const [ultimasActividades, setUltimasActividades] = useState([]);
   const [solicitudesPendientes, setSolicitudesPendientes] = useState([]);
   const [alert, setAlert] = useState(null);
   const [procesando, setProcesando] = useState(null);
-  const [exportingPdf, setExportingPdf] = useState(null); // Guarda qué reporte se está exportando
+  const [exportingPdf, setExportingPdf] = useState(null);
+
   const navigate = useNavigate();
   const userIsAdmin = isAdmin();
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useAutoRefresh(() => loadData(true));
@@ -38,15 +78,24 @@ const Dashboard = () => {
   const loadData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      
-      const [clientes, prestamos, cuotas, pagos] = await Promise.all([
-        clienteApi.getAll(),
-        prestamoApi.getAll(),
-        cuotaApi.getAll(),
-        pagoApi.getAll()
-      ]);
 
-      // Si es admin, cargar solicitudes pendientes
+      // 1) Pintar cache instantáneo (solo en carga normal)
+      if (!silent) {
+        const cached = getCacheWithTTL(CACHE_KEY);
+        if (cached) {
+          setStats(mapSummaryToStats(cached));
+          setLoading(false);
+        }
+      }
+
+      // 2) ✅ Pedir summary con AXIOS (api) -> incluye Basic Auth por interceptor
+      // Tu backend usa /api/... (según clienteApi.getAll)
+      const summary = await api.get('/api/dashboard/summary').then(r => r.data);
+
+      setStats(mapSummaryToStats(summary));
+      setCacheWithTTL(CACHE_KEY, summary, TTL_MS);
+
+      // 3) Admin: solicitudes pendientes
       if (userIsAdmin) {
         try {
           const solicitudes = await pagoApi.getSolicitudesPendientes();
@@ -56,55 +105,12 @@ const Dashboard = () => {
           setSolicitudesPendientes([]);
         }
       }
-
-      // Calcular estadísticas
-      const prestamosActivos = prestamos.filter(p => p.estado === 'ACTIVO');
-      const cuotasPendientes = cuotas.filter(c => c.estado === 'PENDIENTE');
-      const cuotasVencidas = cuotas.filter(c => {
-        if (c.estado === 'PAGADA') return false;
-        return new Date(c.fechaVencimiento) < new Date();
-      });
-
-      // Filtrar solo pagos aprobados para cálculos
-      const pagosAprobados = pagos.filter(p => p.estadoAprobacion === 'APROBADO');
-
-      const totalPorCobrar = prestamosActivos.reduce((sum, p) => {
-        const pagado = pagosAprobados
-          .filter(pago => pago.prestamoId === p.prestamoId)
-          .reduce((s, pago) => s + pago.monto, 0);
-        return sum + (p.totalObjetivo - pagado);
-      }, 0);
-
-      const totalRecaudado = pagosAprobados.reduce((sum, p) => sum + p.monto, 0);
-
-      setStats({
-        totalClientes: clientes.filter(c => c.activo).length,
-        totalPrestamosActivos: prestamosActivos.length,
-        cuotasPendientes: cuotasPendientes.length,
-        cuotasVencidas: cuotasVencidas.length,
-        totalPorCobrar,
-        totalRecaudado
-      });
-
-      // Si no es admin, mostrar últimos pagos aprobados (comportamiento original)
-      if (!userIsAdmin) {
-        const ultimosPagos = pagosAprobados
-          .sort((a, b) => new Date(b.fechaPago) - new Date(a.fechaPago))
-          .slice(0, 5)
-          .map(pago => {
-            const prestamo = prestamos.find(p => p.prestamoId === pago.prestamoId);
-            const cliente = prestamo ? clientes.find(c => c.clienteId === prestamo.clienteId) : null;
-            return {
-              ...pago,
-              clienteNombre: cliente ? `${cliente.nombre} ${cliente.apellido}` : 'N/A'
-            };
-          });
-
-        setUltimasActividades(ultimosPagos);
-      }
-
     } catch (err) {
       console.error('Error al cargar dashboard:', err);
+      setAlert({
+        type: 'error',
+        message: 'No se pudo cargar el dashboard: ' + (err.response?.data?.message || err.message)
+      });
     } finally {
       if (!silent) setLoading(false);
     }
@@ -112,7 +118,7 @@ const Dashboard = () => {
 
   const handleAprobar = async (pagoId) => {
     if (!confirm('¿Confirmar aprobación de este pago?')) return;
-    
+
     try {
       setProcesando(pagoId);
       await pagoApi.aprobar(pagoId);
@@ -120,7 +126,10 @@ const Dashboard = () => {
       await loadData(true);
     } catch (error) {
       console.error('Error al aprobar pago:', error);
-      setAlert({ type: 'error', message: 'Error al aprobar el pago: ' + (error.response?.data?.message || error.message) });
+      setAlert({
+        type: 'error',
+        message: 'Error al aprobar el pago: ' + (error.response?.data?.message || error.message)
+      });
     } finally {
       setProcesando(null);
     }
@@ -128,7 +137,7 @@ const Dashboard = () => {
 
   const handleRechazar = async (pagoId) => {
     if (!confirm('¿Confirmar rechazo de este pago? Esta acción no se puede deshacer.')) return;
-    
+
     try {
       setProcesando(pagoId);
       await pagoApi.rechazar(pagoId);
@@ -136,17 +145,19 @@ const Dashboard = () => {
       await loadData(true);
     } catch (error) {
       console.error('Error al rechazar pago:', error);
-      setAlert({ type: 'error', message: 'Error al rechazar el pago: ' + (error.response?.data?.message || error.message) });
+      setAlert({
+        type: 'error',
+        message: 'Error al rechazar el pago: ' + (error.response?.data?.message || error.message)
+      });
     } finally {
       setProcesando(null);
     }
   };
 
-  // Funciones para exportar PDFs
   const handleExportReporte = async (tipoReporte, dias = null) => {
     try {
       setExportingPdf(tipoReporte);
-      
+
       switch (tipoReporte) {
         case 'cuotasProximas':
           await reporteApi.descargarReporteCuotasProximas(dias);
@@ -160,7 +171,7 @@ const Dashboard = () => {
         default:
           throw new Error('Tipo de reporte no válido');
       }
-      
+
       setAlert({ type: 'success', message: 'PDF exportado exitosamente' });
     } catch (err) {
       console.error('Error al exportar PDF:', err);
@@ -195,9 +206,18 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* Alertas */}
+      {alert && (
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          onClose={() => setAlert(null)}
+        />
+      )}
+
       {/* Estadísticas principales */}
       <div className="stats-grid">
-        <div className="stat-card stat-card-blue" onClick={() => navigate('/clientes')} style={{cursor: 'pointer'}}>
+        <div className="stat-card stat-card-blue" onClick={() => navigate('/clientes')} style={{ cursor: 'pointer' }}>
           <div className="stat-icon-modern">
             <span className="icon-bg blue">👥</span>
           </div>
@@ -208,7 +228,7 @@ const Dashboard = () => {
           <div className="stat-trend">→</div>
         </div>
 
-        <div className="stat-card stat-card-green" onClick={() => navigate('/prestamos')} style={{cursor: 'pointer'}}>
+        <div className="stat-card stat-card-green" onClick={() => navigate('/prestamos')} style={{ cursor: 'pointer' }}>
           <div className="stat-icon-modern">
             <span className="icon-bg green">💰</span>
           </div>
@@ -219,7 +239,7 @@ const Dashboard = () => {
           <div className="stat-trend">→</div>
         </div>
 
-        <div className="stat-card stat-card-orange" onClick={() => navigate('/cuotas')} style={{cursor: 'pointer'}}>
+        <div className="stat-card stat-card-orange" onClick={() => navigate('/cuotas')} style={{ cursor: 'pointer' }}>
           <div className="stat-icon-modern">
             <span className="icon-bg orange">📅</span>
           </div>
@@ -230,11 +250,7 @@ const Dashboard = () => {
           <div className="stat-trend">→</div>
         </div>
 
-        <div 
-          className="stat-card stat-card-danger" 
-          onClick={() => navigate('/cuotas')} 
-          style={{cursor: 'pointer'}}
-        >
+        <div className="stat-card stat-card-danger" onClick={() => navigate('/cuotas')} style={{ cursor: 'pointer' }}>
           <div className="stat-icon-modern">
             <span className="icon-bg red">⚠️</span>
           </div>
@@ -285,15 +301,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Alertas */}
-      {alert && (
-        <Alert
-          type={alert.type}
-          message={alert.message}
-          onClose={() => setAlert(null)}
-        />
-      )}
-
       {/* Solicitudes de Pago (Solo ADMIN) */}
       {userIsAdmin && (
         <div className="card mt-4">
@@ -302,7 +309,7 @@ const Dashboard = () => {
           </div>
           <div className="card-body">
             {solicitudesPendientes.length === 0 ? (
-              <EmptyState 
+              <EmptyState
                 icon="✅"
                 title="Sin solicitudes pendientes"
                 message="Todas las solicitudes han sido procesadas"
@@ -367,18 +374,10 @@ const Dashboard = () => {
           <p style={{ marginBottom: '1.5rem', color: '#6c757d' }}>
             Genera y descarga reportes en PDF con información detallada del negocio
           </p>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-            
-            {/* Cuotas próximas a vencer */}
-            <div style={{ 
-              border: '1px solid #e0e0e0', 
-              borderRadius: '8px', 
-              padding: '1.25rem',
-              backgroundColor: '#f8f9fa'
-            }}>
-              <h4 style={{ marginBottom: '0.75rem', fontSize: '1rem', fontWeight: '600' }}>
-                📅 Cuotas Próximas
-              </h4>
+            <div style={{ border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1.25rem', backgroundColor: '#f8f9fa' }}>
+              <h4 style={{ marginBottom: '0.75rem', fontSize: '1rem', fontWeight: '600' }}>📅 Cuotas Próximas</h4>
               <p style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '1rem' }}>
                 Reporte de cuotas próximas a vencer
               </p>
@@ -410,16 +409,8 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Préstamos activos */}
-            <div style={{ 
-              border: '1px solid #e0e0e0', 
-              borderRadius: '8px', 
-              padding: '1.25rem',
-              backgroundColor: '#f8f9fa'
-            }}>
-              <h4 style={{ marginBottom: '0.75rem', fontSize: '1rem', fontWeight: '600' }}>
-                💰 Préstamos Activos
-              </h4>
+            <div style={{ border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1.25rem', backgroundColor: '#f8f9fa' }}>
+              <h4 style={{ marginBottom: '0.75rem', fontSize: '1rem', fontWeight: '600' }}>💰 Préstamos Activos</h4>
               <p style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '1rem' }}>
                 Listado completo de préstamos activos con resumen financiero
               </p>
@@ -433,16 +424,8 @@ const Dashboard = () => {
               </button>
             </div>
 
-            {/* Préstamos atrasados */}
-            <div style={{ 
-              border: '1px solid #e0e0e0', 
-              borderRadius: '8px', 
-              padding: '1.25rem',
-              backgroundColor: '#f8f9fa'
-            }}>
-              <h4 style={{ marginBottom: '0.75rem', fontSize: '1rem', fontWeight: '600' }}>
-                ⚠️ Préstamos Atrasados
-              </h4>
+            <div style={{ border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1.25rem', backgroundColor: '#f8f9fa' }}>
+              <h4 style={{ marginBottom: '0.75rem', fontSize: '1rem', fontWeight: '600' }}>⚠️ Préstamos Atrasados</h4>
               <p style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '1rem' }}>
                 Reporte de préstamos con pagos vencidos
               </p>
@@ -455,8 +438,8 @@ const Dashboard = () => {
                 {exportingPdf === 'prestamosAtrasados' ? '⏳ Exportando...' : '📄 Exportar PDF'}
               </button>
             </div>
-            
           </div>
+
           <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#6c757d', fontStyle: 'italic' }}>
             💡 Consejo: También puedes exportar información detallada de clientes y préstamos individuales desde sus páginas de detalle
           </p>
