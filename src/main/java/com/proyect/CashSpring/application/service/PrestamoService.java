@@ -95,6 +95,14 @@ public class PrestamoService {
             throw new IllegalArgumentException("Solo los préstamos con acuerdo QUINCENAS_DOBLES pueden ser extendidos.");
         }
 
+        // Verificar que no haya penalización pendiente
+        if (prestamo.getPenalizacionAcumulada() != null && prestamo.getPenalizacionAcumulada() > 0) {
+            throw new IllegalArgumentException(
+                "No se puede extender el préstamo mientras tenga penalización pendiente. " +
+                "Debe pagar la penalización de ₡" + prestamo.getPenalizacionAcumulada() + " antes de extender."
+            );
+        }
+
         // Verificar que el cliente haya pagado al menos el 50% de la deuda
         long montoPagado = prestamo.getPagos().stream().mapToLong(pago -> pago.getMonto()).sum();
         if (montoPagado < (prestamo.getTotalObjetivo() / 2)) {
@@ -422,7 +430,12 @@ public class PrestamoService {
             boolean tieneCuotasPendientes = p.getCuotas().stream()
                     .anyMatch(c -> c.getEstado() == EstadoCuota.PENDIENTE);
             
-            if (tieneCuotasPendientes) {
+            // IMPORTANTE: NO recalcular si está pausada o negociada
+            // En esos casos, la penalización solo debe cambiar con pagos, no con el cálculo automático
+            boolean tieneControlActivo = Boolean.TRUE.equals(p.getPenalizacionPausada()) || 
+                                         Boolean.TRUE.equals(p.getPenalizacionNegociada());
+            
+            if (tieneCuotasPendientes && !tieneControlActivo) {
                 // Solo actualizar si hay cuotas PENDIENTES que puedan generar nueva penalización
                 long penalizacionCalculada = penalizacionService.calcularPenalizacion(p);
                 // Solo actualizar si la penalización AUMENTÓ (evita sobrescribir pagos parciales)
@@ -449,7 +462,12 @@ public class PrestamoService {
                 boolean tieneCuotasPendientes = p.getCuotas().stream()
                         .anyMatch(c -> c.getEstado() == EstadoCuota.PENDIENTE);
                 
-                if (tieneCuotasPendientes) {
+                // IMPORTANTE: NO recalcular si está pausada o negociada
+                // En esos casos, la penalización solo debe cambiar con pagos, no con el cálculo automático
+                boolean tieneControlActivo = Boolean.TRUE.equals(p.getPenalizacionPausada()) || 
+                                             Boolean.TRUE.equals(p.getPenalizacionNegociada());
+                
+                if (tieneCuotasPendientes && !tieneControlActivo) {
                     // Solo actualizar si hay cuotas PENDIENTES que puedan generar nueva penalización
                     long penalizacionCalculada = penalizacionService.calcularPenalizacion(p);
                     // Solo actualizar si la penalización AUMENTÓ (evita sobrescribir pagos parciales)
@@ -483,7 +501,12 @@ public class PrestamoService {
                 boolean tieneCuotasPendientes = p.getCuotas().stream()
                         .anyMatch(c -> c.getEstado() == EstadoCuota.PENDIENTE);
                 
-                if (tieneCuotasPendientes) {
+                // IMPORTANTE: NO recalcular si está pausada o negociada
+                // En esos casos, la penalización solo debe cambiar con pagos, no con el cálculo automático
+                boolean tieneControlActivo = Boolean.TRUE.equals(p.getPenalizacionPausada()) || 
+                                             Boolean.TRUE.equals(p.getPenalizacionNegociada());
+                
+                if (tieneCuotasPendientes && !tieneControlActivo) {
                     // Solo actualizar si hay cuotas PENDIENTES que puedan generar nueva penalización
                     long penalizacionCalculada = penalizacionService.calcularPenalizacion(p);
                     // Solo actualizar si la penalización AUMENTÓ (evita sobrescribir pagos parciales)
@@ -651,6 +674,13 @@ public class PrestamoService {
         // y si ya se cubrieron todas las cuotas pero queda penalización por pagar, devolvería 0 incorrectamente
         resp.setPenalizacionAcumulada(p.getPenalizacionAcumulada());
 
+        // Campos de control de penalización
+        resp.setPenalizacionPausada(p.getPenalizacionPausada());
+        resp.setFechaPausaPenalizacion(p.getFechaPausaPenalizacion());
+        resp.setPenalizacionNegociada(p.getPenalizacionNegociada());
+        resp.setMontoNegociado(p.getMontoNegociado());
+        resp.setFechaNegociacion(p.getFechaNegociacion());
+
         List<PrestamoResponse.CuotaItem> cuotas = new ArrayList<>();
         for (CuotaEntity c : p.getCuotas()) {
             PrestamoResponse.CuotaItem item = new PrestamoResponse.CuotaItem();
@@ -664,5 +694,88 @@ public class PrestamoService {
         resp.setCuotas(cuotas);
 
         return resp;
+    }
+
+    // ============================================
+    // MÉTODOS DE CONTROL DE PENALIZACIÓN
+    // ============================================
+
+    @Transactional
+    public PrestamoResponse pausarPenalizacion(Long prestamoId) {
+        PrestamoEntity p = prestamoRepo.findById(prestamoId)
+                .orElseThrow(() -> new IllegalArgumentException("Préstamo no encontrado"));
+
+        if (Boolean.TRUE.equals(p.getPenalizacionPausada())) {
+            throw new IllegalStateException("La penalización ya está pausada");
+        }
+
+        p.setPenalizacionPausada(true);
+        p.setFechaPausaPenalizacion(LocalDate.now());
+        prestamoRepo.save(p);
+
+        return toResponse(p);
+    }
+
+    @Transactional
+    public PrestamoResponse reanudarPenalizacion(Long prestamoId) {
+        PrestamoEntity p = prestamoRepo.findById(prestamoId)
+                .orElseThrow(() -> new IllegalArgumentException("Préstamo no encontrado"));
+
+        if (!Boolean.TRUE.equals(p.getPenalizacionPausada())) {
+            throw new IllegalStateException("La penalización no está pausada");
+        }
+
+        p.setPenalizacionPausada(false);
+        p.setFechaPausaPenalizacion(null);
+
+        // Recalcular penalización actualizada
+        Long penalizacionActual = penalizacionService.calcularPenalizacion(p);
+        p.setPenalizacionAcumulada(penalizacionActual);
+
+        prestamoRepo.save(p);
+
+        return toResponse(p);
+    }
+
+    @Transactional
+    public PrestamoResponse negociarPenalizacion(Long prestamoId, Long montoNegociado) {
+        PrestamoEntity p = prestamoRepo.findById(prestamoId)
+                .orElseThrow(() -> new IllegalArgumentException("Préstamo no encontrado"));
+
+        if (montoNegociado < 0) {
+            throw new IllegalArgumentException("El monto negociado no puede ser negativo");
+        }
+
+        p.setPenalizacionNegociada(true);
+        p.setMontoNegociado(montoNegociado);
+        p.setFechaNegociacion(LocalDate.now());
+
+        // La penalización pasa a ser el monto negociado
+        p.setPenalizacionAcumulada(montoNegociado);
+
+        prestamoRepo.save(p);
+
+        return toResponse(p);
+    }
+
+    @Transactional
+    public PrestamoResponse resetearPenalizacion(Long prestamoId) {
+        PrestamoEntity p = prestamoRepo.findById(prestamoId)
+                .orElseThrow(() -> new IllegalArgumentException("Préstamo no encontrado"));
+
+        // Limpiar todos los controles
+        p.setPenalizacionPausada(false);
+        p.setFechaPausaPenalizacion(null);
+        p.setPenalizacionNegociada(false);
+        p.setMontoNegociado(null);
+        p.setFechaNegociacion(null);
+
+        // Recalcular penalización normal
+        Long penalizacionActual = penalizacionService.calcularPenalizacion(p);
+        p.setPenalizacionAcumulada(penalizacionActual);
+
+        prestamoRepo.save(p);
+
+        return toResponse(p);
     }
 }

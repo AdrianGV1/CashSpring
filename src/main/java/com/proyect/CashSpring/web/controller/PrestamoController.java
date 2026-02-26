@@ -74,4 +74,34 @@ public class PrestamoController {
         return prestamoService.liquidarPrestamo(id, fecha);
     }
 
+    // POST /api/prestamos/{id}/pausar-penalizacion
+    @PostMapping("/{id}/pausar-penalizacion")
+    public PrestamoResponse pausarPenalizacion(@PathVariable Long id) {
+        return prestamoService.pausarPenalizacion(id);
+    }
+
+    // POST /api/prestamos/{id}/reanudar-penalizacion
+    @PostMapping("/{id}/reanudar-penalizacion")
+    public PrestamoResponse reanudarPenalizacion(@PathVariable Long id) {
+        return prestamoService.reanudarPenalizacion(id);
+    }
+
+    // POST /api/prestamos/{id}/negociar-penalizacion
+    @PostMapping("/{id}/negociar-penalizacion")
+    public PrestamoResponse negociarPenalizacion(
+            @PathVariable Long id,
+            @RequestBody Map<String, Long> body) {
+        Long montoNegociado = body.get("montoNegociado");
+        if (montoNegociado == null) {
+            throw new IllegalArgumentException("montoNegociado es requerido");
+        }
+        return prestamoService.negociarPenalizacion(id, montoNegociado);
+    }
+
+    // POST /api/prestamos/{id}/resetear-penalizacion
+    @PostMapping("/{id}/resetear-penalizacion")
+    public PrestamoResponse resetearPenalizacion(@PathVariable Long id) {
+        return prestamoService.resetearPenalizacion(id);
+    }
+
 }

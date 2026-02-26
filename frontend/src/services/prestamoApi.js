@@ -48,5 +48,25 @@ export const prestamoApi = {
     if (fechaLiquidacion) body.fechaLiquidacion = fechaLiquidacion;
     const response = await axiosInstance.post(`/${id}/liquidar`, body);
     return response.data;
+  },
+
+  pausarPenalizacion: async (id) => {
+    const response = await axiosInstance.post(`/${id}/pausar-penalizacion`);
+    return response.data;
+  },
+
+  reanudarPenalizacion: async (id) => {
+    const response = await axiosInstance.post(`/${id}/reanudar-penalizacion`);
+    return response.data;
+  },
+
+  negociarPenalizacion: async (id, montoNegociado) => {
+    const response = await axiosInstance.post(`/${id}/negociar-penalizacion`, { montoNegociado });
+    return response.data;
+  },
+
+  resetearPenalizacion: async (id) => {
+    const response = await axiosInstance.post(`/${id}/resetear-penalizacion`);
+    return response.data;
   }
 };

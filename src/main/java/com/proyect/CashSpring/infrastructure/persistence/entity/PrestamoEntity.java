@@ -72,6 +72,25 @@ public class PrestamoEntity {
     @Column(name = "penalizacion_acumulada", nullable = false)
     private Long penalizacionAcumulada = 0L;
 
+    // Control de penalización: PAUSAR
+    @Builder.Default
+    @Column(name = "penalizacion_pausada", nullable = true)
+    private Boolean penalizacionPausada = false;
+
+    @Column(name = "fecha_pausa_penalizacion")
+    private LocalDate fechaPausaPenalizacion;
+
+    // Control de penalización: NEGOCIAR
+    @Builder.Default
+    @Column(name = "penalizacion_negociada", nullable = true)
+    private Boolean penalizacionNegociada = false;
+
+    @Column(name = "monto_negociado")
+    private Long montoNegociado;
+
+    @Column(name = "fecha_negociacion")
+    private LocalDate fechaNegociacion;
+
     @CreationTimestamp
     @Column(name="created_at", nullable = false, updatable = false)
     private Instant createdAt;

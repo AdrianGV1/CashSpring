@@ -197,10 +197,14 @@ public class PagoService {
         // IMPORTANTE: Solo recalcular si hay cuotas PENDIENTES que puedan generar nueva penalización
         // Si la penalización AUMENTÓ (pasaron más días), actualizarla
         // Si ya se pagó parte de la penalización, NO sobrescribir
+        // Si está pausada o negociada, NO recalcular (solo cambia con pagos)
         boolean tieneCuotasPendientes = prestamo.getCuotas().stream()
                 .anyMatch(c -> c.getEstado() == EstadoCuota.PENDIENTE);
         
-        if (tieneCuotasPendientes) {
+        boolean tieneControlActivo = Boolean.TRUE.equals(prestamo.getPenalizacionPausada()) || 
+                                     Boolean.TRUE.equals(prestamo.getPenalizacionNegociada());
+        
+        if (tieneCuotasPendientes && !tieneControlActivo) {
             // Usar la fecha del pago para calcular la penalización correctamente
             // (importante al revertir pagos para mantener consistencia histórica)
             long penalizacionCalculada = penalizacionService.calcularPenalizacion(prestamo, fechaPago);
@@ -253,6 +257,18 @@ public class PagoService {
             }
         }
         
+        // ========== PASO 2.1: AUTO-DESPAUSAR si se pagó cuota atrasada ==========
+        // Si la penalización estaba pausada Y se cubrió alguna cuota atrasada → Despausar
+        if (Boolean.TRUE.equals(prestamo.getPenalizacionPausada())) {
+            boolean seCubrioAlgunaAtrasada = cuotasAtrasadas.stream()
+                    .anyMatch(c -> c.getEstado() == EstadoCuota.CUBIERTA);
+            
+            if (seCubrioAlgunaAtrasada) {
+                prestamo.setPenalizacionPausada(false);
+                prestamo.setFechaPausaPenalizacion(null);
+            }
+        }
+        
         // ========== PASO 3: PAGAR PENALIZACIÓN (solo después de TODAS las atrasadas) ==========
         if (restante > 0 && prestamo.getPenalizacionAcumulada() > 0) {
             long penalizacionActual = prestamo.getPenalizacionAcumulada();
@@ -261,6 +277,16 @@ public class PagoService {
                 // El pago cubre toda la penalización
                 prestamo.setPenalizacionAcumulada(0L);
                 restante -= penalizacionActual;
+                
+                // Si se pagó TODA la penalización, limpiar controles (pausa/negociación)
+                if (Boolean.TRUE.equals(prestamo.getPenalizacionPausada()) || 
+                    Boolean.TRUE.equals(prestamo.getPenalizacionNegociada())) {
+                    prestamo.setPenalizacionPausada(false);
+                    prestamo.setFechaPausaPenalizacion(null);
+                    prestamo.setPenalizacionNegociada(false);
+                    prestamo.setMontoNegociado(null);
+                    prestamo.setFechaNegociacion(null);
+                }
             } else {
                 // El pago cubre parte de la penalización
                 prestamo.setPenalizacionAcumulada(penalizacionActual - restante);

@@ -38,6 +38,12 @@ const PrestamoDetailPage = () => {
   const [fechaLiquidacion, setFechaLiquidacion] = useState(new Date().toISOString().split('T')[0]);
   const [exportingPdf, setExportingPdf] = useState(false);
 
+  // Estados para control de penalización
+  const [showNegociarModal, setShowNegociarModal] = useState(false);
+  const [montoNegociar, setMontoNegociar] = useState('');
+  const [penalizacionLoading, setPenalizacionLoading] = useState(false);
+  const [penalizacionError, setPenalizacionError] = useState(null);
+
   useEffect(() => {
     loadData();
   }, [id]);
@@ -203,6 +209,83 @@ const PrestamoDetailPage = () => {
     }
   };
 
+  const handlePausarPenalizacion = async () => {
+    try {
+      setPenalizacionLoading(true);
+      setPenalizacionError(null);
+      await prestamoApi.pausarPenalizacion(id);
+      await loadData();
+      alert('✅ Penalización pausada exitosamente');
+    } catch (err) {
+      const mensaje = err?.response?.data?.message || err?.message;
+      setPenalizacionError(mensaje || 'Error al pausar la penalización');
+      alert(`❌ ${mensaje || 'Error al pausar la penalización'}`);
+    } finally {
+      setPenalizacionLoading(false);
+    }
+  };
+
+  const handleReanudarPenalizacion = async () => {
+    try {
+      setPenalizacionLoading(true);
+      setPenalizacionError(null);
+      await prestamoApi.reanudarPenalizacion(id);
+      await loadData();
+      alert('✅ Penalización reanudada exitosamente');
+    } catch (err) {
+      const mensaje = err?.response?.data?.message || err?.message;
+      setPenalizacionError(mensaje || 'Error al reanudar la penalización');
+      alert(`❌ ${mensaje || 'Error al reanudar la penalización'}`);
+    } finally {
+      setPenalizacionLoading(false);
+    }
+  };
+
+  const handleNegociarPenalizacion = async (e) => {
+    e.preventDefault();
+    const monto = Number(montoNegociar);
+    if (isNaN(monto) || monto < 0) {
+      alert('El monto debe ser un número válido mayor o igual a 0');
+      return;
+    }
+    try {
+      setPenalizacionLoading(true);
+      setPenalizacionError(null);
+      await prestamoApi.negociarPenalizacion(id, monto);
+      await loadData();
+      setShowNegociarModal(false);
+      setMontoNegociar('');
+      alert(`✅ Penalización negociada exitosamente a ${formatMoney(monto)}`);
+    } catch (err) {
+      const mensaje = err?.response?.data?.message || err?.message;
+      setPenalizacionError(mensaje || 'Error al negociar la penalización');
+      alert(`❌ ${mensaje || 'Error al negociar la penalización'}`);
+    } finally {
+      setPenalizacionLoading(false);
+    }
+  };
+
+  const handleResetearPenalizacion = async () => {
+    const confirmar = window.confirm(
+      '¿Está seguro de resetear el control de penalización?\n\n' +
+      'Esto eliminará la pausa o negociación activa y volverá al cálculo normal.'
+    );
+    if (!confirmar) return;
+    try {
+      setPenalizacionLoading(true);
+      setPenalizacionError(null);
+      await prestamoApi.resetearPenalizacion(id);
+      await loadData();
+      alert('✅ Control de penalización reseteado exitosamente');
+    } catch (err) {
+      const mensaje = err?.response?.data?.message || err?.message;
+      setPenalizacionError(mensaje || 'Error al resetear la penalización');
+      alert(`❌ ${mensaje || 'Error al resetear la penalización'}`);
+    } finally {
+      setPenalizacionLoading(false);
+    }
+  };
+
   const handleExtenderPrestamo = async (e) => {
     e.preventDefault();
     const monto = Number(montoExtendido);
@@ -217,6 +300,15 @@ const PrestamoDetailPage = () => {
         return;
       }
     }
+    // Validar que no haya penalización pendiente
+    if (prestamo.penalizacionAcumulada && prestamo.penalizacionAcumulada > 0) {
+      setExtensionError(
+        `No se puede extender el préstamo mientras tenga penalización pendiente. ` +
+        `Debe pagar la penalización de ${formatMoney(prestamo.penalizacionAcumulada)} antes de extender.`
+      );
+      return;
+    }
+
     const { totalPagado } = calcularProgreso();
     if (totalPagado < prestamo.totalObjetivo / 2) {
       setExtensionError('Debe haber pagado al menos el 50% del préstamo para poder extenderlo.');
@@ -446,7 +538,16 @@ const PrestamoDetailPage = () => {
           </button>
         )}
         {prestamo.tipoAcuerdo === 'QUINCENAS_DOBLES' && !prestamo.esExtendido && !estaCompleto && (() => {
-          const puedeExtender = progresoCuotas.porcentaje >= 50;
+          const tienePenalizacion = prestamo.penalizacionAcumulada && prestamo.penalizacionAcumulada > 0;
+          const puedeExtender = progresoCuotas.porcentaje >= 50 && !tienePenalizacion;
+          
+          let mensajeBloqueo = '';
+          if (tienePenalizacion) {
+            mensajeBloqueo = `No se puede extender mientras haya penalización pendiente (${formatMoney(prestamo.penalizacionAcumulada)})`;
+          } else if (progresoCuotas.porcentaje < 50) {
+            mensajeBloqueo = `Debes pagar al menos el 50% de las cuotas para extender (pagado: ${progresoCuotas.porcentaje.toFixed(1)}%)`;
+          }
+          
           return (
             <button
               onClick={() => {
@@ -474,7 +575,7 @@ const PrestamoDetailPage = () => {
               title={
                 puedeExtender
                   ? 'Extender préstamo'
-                  : `Debes pagar al menos el 50% de las cuotas para extender (pagado: ${progresoCuotas.porcentaje.toFixed(1)}%)`
+                  : mensajeBloqueo
               }
             >
               {showExtensionForm ? 'Cancelar Extensión' : '🔄 Extender Préstamo'}
@@ -678,12 +779,19 @@ const PrestamoDetailPage = () => {
         >
           <span style={{ fontSize: '1.25rem' }}>⚠️</span>
           <div>
-            <strong>No es posible extender el préstamo aún.</strong>
+            <strong>No es posible extender el préstamo.</strong>
             <br />
-            <span>
-              Debes haber pagado al menos el <strong>50%</strong> de las cuotas del préstamo para poder extenderlo.
-              Progreso de cuotas: <strong>{progresoCuotas.porcentaje.toFixed(1)}%</strong> ({formatMoney(progresoCuotas.totalCuotasPagado)} de {formatMoney(progresoCuotas.totalCuotas)} pagado).
-            </span>
+            {prestamo.penalizacionAcumulada && prestamo.penalizacionAcumulada > 0 ? (
+              <span>
+                No se puede extender el préstamo mientras tenga <strong>penalización pendiente</strong>.
+                Debe pagar primero la penalización de <strong>{formatMoney(prestamo.penalizacionAcumulada)}</strong>.
+              </span>
+            ) : (
+              <span>
+                Debes haber pagado al menos el <strong>50%</strong> de las cuotas del préstamo para poder extenderlo.
+                Progreso de cuotas: <strong>{progresoCuotas.porcentaje.toFixed(1)}%</strong> ({formatMoney(progresoCuotas.totalCuotasPagado)} de {formatMoney(progresoCuotas.totalCuotas)} pagado).
+              </span>
+            )}
           </div>
           <button
             onClick={() => setShowExtensionWarning(false)}
@@ -935,8 +1043,60 @@ const PrestamoDetailPage = () => {
                     {formatMoney(prestamo.penalizacionAcumulada)}
                   </span>
                   <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.25rem' }}>
-                    ₡5,000 por día de retraso
+                    {prestamo.penalizacionNegociada ? (
+                      <span style={{ color: '#28a745', fontWeight: 'bold' }}>
+                        💼 Monto negociado {prestamo.fechaNegociacion && `(${formatDate(prestamo.fechaNegociacion)})`}
+                      </span>
+                    ) : prestamo.penalizacionPausada ? (
+                      <span style={{ color: '#ffc107', fontWeight: 'bold' }}>
+                        ⏸️ Pausada {prestamo.fechaPausaPenalizacion && `(${formatDate(prestamo.fechaPausaPenalizacion)})`}
+                      </span>
+                    ) : (
+                      <span>₡5,000 por día de retraso</span>
+                    )}
                   </div>
+                  {(isAdmin() || isSupervisor()) && (
+                    <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {!prestamo.penalizacionPausada && !prestamo.penalizacionNegociada && (
+                        <button 
+                          onClick={handlePausarPenalizacion}
+                          disabled={penalizacionLoading}
+                          className="btn btn-sm btn-warning"
+                          style={{ fontSize: '0.8rem' }}
+                        >
+                          ⏸️ Pausar
+                        </button>
+                      )}
+                      {prestamo.penalizacionPausada && (
+                        <button 
+                          onClick={handleReanudarPenalizacion}
+                          disabled={penalizacionLoading}
+                          className="btn btn-sm btn-success"
+                          style={{ fontSize: '0.8rem' }}
+                        >
+                          ▶️ Reanudar
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => setShowNegociarModal(true)}
+                        disabled={penalizacionLoading}
+                        className="btn btn-sm btn-info"
+                        style={{ fontSize: '0.8rem' }}
+                      >
+                        💼 Negociar
+                      </button>
+                      {(prestamo.penalizacionPausada || prestamo.penalizacionNegociada) && (
+                        <button 
+                          onClick={handleResetearPenalizacion}
+                          disabled={penalizacionLoading}
+                          className="btn btn-sm btn-secondary"
+                          style={{ fontSize: '0.8rem' }}
+                        >
+                          🔄 Resetear
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               <div className="info-item">
@@ -1217,6 +1377,78 @@ const PrestamoDetailPage = () => {
           )}
         </div>
       </div>
+
+      {/* Modal de negociación de penalización */}
+      {showNegociarModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          onClick={() => setShowNegociarModal(false)}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginBottom: '1.5rem', color: '#333' }}>💼 Negociar Penalización</h3>
+            <form onSubmit={handleNegociarPenalizacion}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                  Monto Negociado (₡)
+                </label>
+                <input
+                  type="number"
+                  value={montoNegociar}
+                  onChange={(e) => setMontoNegociar(e.target.value)}
+                  className="form-control"
+                  placeholder="Ingrese el monto acordado"
+                  required
+                  min="0"
+                  step="1000"
+                />
+                <small style={{ color: '#666', fontSize: '0.85rem', marginTop: '0.5rem', display: 'block' }}>
+                  Ingrese el monto de penalización acordado con el cliente. Este monto reemplazará el cálculo automático hasta que se pague o se resetee.
+                </small>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNegociarModal(false);
+                    setMontoNegociar('');
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={penalizacionLoading}
+                  className="btn btn-primary"
+                >
+                  {penalizacionLoading ? 'Guardando...' : 'Confirmar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

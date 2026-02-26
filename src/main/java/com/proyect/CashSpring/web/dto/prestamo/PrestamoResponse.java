@@ -28,6 +28,13 @@ public class PrestamoResponse {
     private Long montoLiquidacion;
     private Long penalizacionAcumulada;
 
+    // Campos de control de penalización
+    private Boolean penalizacionPausada;
+    private LocalDate fechaPausaPenalizacion;
+    private Boolean penalizacionNegociada;
+    private Long montoNegociado;
+    private LocalDate fechaNegociacion;
+
     private List<CuotaItem> cuotas;
 
     public static class CuotaItem {
@@ -91,6 +98,21 @@ public class PrestamoResponse {
 
     public Long getPenalizacionAcumulada() { return penalizacionAcumulada; }
     public void setPenalizacionAcumulada(Long penalizacionAcumulada) { this.penalizacionAcumulada = penalizacionAcumulada; }
+
+    public Boolean getPenalizacionPausada() { return penalizacionPausada; }
+    public void setPenalizacionPausada(Boolean penalizacionPausada) { this.penalizacionPausada = penalizacionPausada; }
+
+    public LocalDate getFechaPausaPenalizacion() { return fechaPausaPenalizacion; }
+    public void setFechaPausaPenalizacion(LocalDate fechaPausaPenalizacion) { this.fechaPausaPenalizacion = fechaPausaPenalizacion; }
+
+    public Boolean getPenalizacionNegociada() { return penalizacionNegociada; }
+    public void setPenalizacionNegociada(Boolean penalizacionNegociada) { this.penalizacionNegociada = penalizacionNegociada; }
+
+    public Long getMontoNegociado() { return montoNegociado; }
+    public void setMontoNegociado(Long montoNegociado) { this.montoNegociado = montoNegociado; }
+
+    public LocalDate getFechaNegociacion() { return fechaNegociacion; }
+    public void setFechaNegociacion(LocalDate fechaNegociacion) { this.fechaNegociacion = fechaNegociacion; }
 
     public List<CuotaItem> getCuotas() { return cuotas; }
     public void setCuotas(List<CuotaItem> cuotas) { this.cuotas = cuotas; }

@@ -31,23 +31,34 @@ public class PenalizacionService {
      * Calcula la penalización acumulada de un préstamo basado en sus cuotas vencidas.
      * La penalización es GLOBAL del préstamo, no individual por cuota.
      * 
-     * Lógica:
-     * - Se busca la primera cuota PENDIENTE vencida
-     * - Se cuenta cuántos días han pasado desde su vencimiento
-     * - Se resta 1 día de gracia
-     * - Si diasRetraso > 0: penalización = diasRetraso × 5000
+     * Lógica con control de PAUSAR/NEGOCIAR:
+     * 1. Si está NEGOCIADA → retorna el monto negociado (fijo)
+     * 2. Si está PAUSADA → retorna la penalización acumulada actual (congelada)
+     * 3. Si el préstamo está PAGADO/LIQUIDADO → retorna 0
+     * 4. Si no hay cuotas pendientes → retorna 0
+     * 5. Sino → calcula normalmente (días × 5000)
      * 
      * @param prestamo El préstamo a calcular
      * @param fechaReferencia Fecha de referencia para calcular días de atraso (null = hoy)
      */
     public long calcularPenalizacion(PrestamoEntity prestamo, LocalDate fechaReferencia) {
-        // Si el préstamo ya está PAGADO o LIQUIDADO, no hay penalización
+        // 1. Si está NEGOCIADA → retornar monto negociado (fijo)
+        if (Boolean.TRUE.equals(prestamo.getPenalizacionNegociada()) && prestamo.getMontoNegociado() != null) {
+            return prestamo.getMontoNegociado();
+        }
+
+        // 2. Si está PAUSADA → retornar penalización actual (congelada, no aumenta)
+        if (Boolean.TRUE.equals(prestamo.getPenalizacionPausada())) {
+            return prestamo.getPenalizacionAcumulada() != null ? prestamo.getPenalizacionAcumulada() : 0L;
+        }
+
+        // 3. Si el préstamo ya está PAGADO o LIQUIDADO, no hay penalización
         if (prestamo.getEstado() == EstadoPrestamo.PAGADO || 
             prestamo.getEstado() == EstadoPrestamo.LIQUIDADO) {
             return 0L;
         }
 
-        // Buscar la primera cuota PENDIENTE más antigua
+        // 4. Buscar la primera cuota PENDIENTE más antigua
         Optional<CuotaEntity> primeraCuotaPendiente = prestamo.getCuotas().stream()
                 .filter(c -> c.getEstado() == EstadoCuota.PENDIENTE)
                 .min((c1, c2) -> c1.getFechaVencimiento().compareTo(c2.getFechaVencimiento()));
@@ -57,6 +68,7 @@ public class PenalizacionService {
             return 0L;
         }
 
+        // 5. Calcular penalización normal
         LocalDate fechaVencimiento = primeraCuotaPendiente.get().getFechaVencimiento();
         LocalDate fechaCalculo = (fechaReferencia != null) ? fechaReferencia : LocalDate.now();
 
