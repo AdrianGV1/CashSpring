@@ -30,13 +30,16 @@ public class PrestamoService {
 
     private final ClienteJpaRepository clienteRepo;
     private final PrestamoJpaRepository prestamoRepo;
+    private final PenalizacionService penalizacionService;
 
     @PersistenceContext
     private EntityManager em;
 
-    public PrestamoService(ClienteJpaRepository clienteRepo, PrestamoJpaRepository prestamoRepo) {
+    public PrestamoService(ClienteJpaRepository clienteRepo, PrestamoJpaRepository prestamoRepo,
+                          PenalizacionService penalizacionService) {
         this.clienteRepo = clienteRepo;
         this.prestamoRepo = prestamoRepo;
+        this.penalizacionService = penalizacionService;
     }
 
     @Transactional
@@ -408,25 +411,94 @@ public class PrestamoService {
         return toResponse(guardado);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public PrestamoResponse obtenerPrestamo(Long id) {
         PrestamoEntity p = prestamoRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Préstamo no encontrado: " + id));
+        
+        // Actualizar penalización y estado en tiempo real SOLO si hay cuotas PENDIENTES
+        // Si ya no hay cuotas PENDIENTES, mantener el valor de BD (puede haber penalización aún sin pagar)
+        if (p.getEstado() == EstadoPrestamo.ACTIVO || p.getEstado() == EstadoPrestamo.ATRASADO) {
+            boolean tieneCuotasPendientes = p.getCuotas().stream()
+                    .anyMatch(c -> c.getEstado() == EstadoCuota.PENDIENTE);
+            
+            if (tieneCuotasPendientes) {
+                // Solo actualizar si hay cuotas PENDIENTES que puedan generar nueva penalización
+                long penalizacionCalculada = penalizacionService.calcularPenalizacion(p);
+                // Solo actualizar si la penalización AUMENTÓ (evita sobrescribir pagos parciales)
+                if (penalizacionCalculada > p.getPenalizacionAcumulada()) {
+                    p.setPenalizacionAcumulada(penalizacionCalculada);
+                }
+            }
+            // Siempre actualizar el estado (puede cambiar de ACTIVO a ATRASADO o viceversa)
+            penalizacionService.actualizarEstadoPrestamo(p);
+            prestamoRepo.save(p);
+        }
+        
         return toResponse(p);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<PrestamoResponse> listarPrestamos() {
-        return prestamoRepo.findAll()
-                .stream()
+        List<PrestamoEntity> prestamos = prestamoRepo.findAll();
+        
+        // Actualizar penalización y estado de préstamos activos/atrasados en tiempo real
+        List<PrestamoEntity> prestamosActualizados = new ArrayList<>();
+        for (PrestamoEntity p : prestamos) {
+            if (p.getEstado() == EstadoPrestamo.ACTIVO || p.getEstado() == EstadoPrestamo.ATRASADO) {
+                boolean tieneCuotasPendientes = p.getCuotas().stream()
+                        .anyMatch(c -> c.getEstado() == EstadoCuota.PENDIENTE);
+                
+                if (tieneCuotasPendientes) {
+                    // Solo actualizar si hay cuotas PENDIENTES que puedan generar nueva penalización
+                    long penalizacionCalculada = penalizacionService.calcularPenalizacion(p);
+                    // Solo actualizar si la penalización AUMENTÓ (evita sobrescribir pagos parciales)
+                    if (penalizacionCalculada > p.getPenalizacionAcumulada()) {
+                        p.setPenalizacionAcumulada(penalizacionCalculada);
+                    }
+                }
+                // Siempre actualizar el estado
+                penalizacionService.actualizarEstadoPrestamo(p);
+                prestamosActualizados.add(p);
+            }
+        }
+        if (!prestamosActualizados.isEmpty()) {
+            prestamoRepo.saveAll(prestamosActualizados);
+        }
+        
+        return prestamos.stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<PrestamoResponse> listarPrestamosPorCliente(Long clienteId) {
         // Obtener préstamos del cliente ordenados: ACTIVO primero, luego por fecha de creación descendente
         List<PrestamoEntity> prestamos = prestamoRepo.findByClienteIdOrderByEstadoAscCreatedAtDesc(clienteId);
+        
+        // Actualizar penalización y estado de préstamos activos/atrasados en tiempo real
+        List<PrestamoEntity> prestamosActualizados = new ArrayList<>();
+        for (PrestamoEntity p : prestamos) {
+            if (p.getEstado() == EstadoPrestamo.ACTIVO || p.getEstado() == EstadoPrestamo.ATRASADO) {
+                boolean tieneCuotasPendientes = p.getCuotas().stream()
+                        .anyMatch(c -> c.getEstado() == EstadoCuota.PENDIENTE);
+                
+                if (tieneCuotasPendientes) {
+                    // Solo actualizar si hay cuotas PENDIENTES que puedan generar nueva penalización
+                    long penalizacionCalculada = penalizacionService.calcularPenalizacion(p);
+                    // Solo actualizar si la penalización AUMENTÓ (evita sobrescribir pagos parciales)
+                    if (penalizacionCalculada > p.getPenalizacionAcumulada()) {
+                        p.setPenalizacionAcumulada(penalizacionCalculada);
+                    }
+                }
+                // Siempre actualizar el estado
+                penalizacionService.actualizarEstadoPrestamo(p);
+                prestamosActualizados.add(p);
+            }
+        }
+        if (!prestamosActualizados.isEmpty()) {
+            prestamoRepo.saveAll(prestamosActualizados);
+        }
         
         // Ordenar manualmente: ACTIVO/ATRASADO primero, luego PAGADO
         return prestamos.stream()
@@ -573,6 +645,11 @@ public class PrestamoService {
         // montoLiquidacion siempre calculado dinámicamente
         long montoLiq = calcularTotalMontoMasInteres(p.getMontoPrestado(), p.getInteresBase());
         resp.setMontoLiquidacion(montoLiq);
+
+        // Usar el valor almacenado en BD (refleja la penalización real que se debe)
+        // NO recalcular porque calcularPenalizacion() solo considera cuotas PENDIENTES vencidas,
+        // y si ya se cubrieron todas las cuotas pero queda penalización por pagar, devolvería 0 incorrectamente
+        resp.setPenalizacionAcumulada(p.getPenalizacionAcumulada());
 
         List<PrestamoResponse.CuotaItem> cuotas = new ArrayList<>();
         for (CuotaEntity c : p.getCuotas()) {

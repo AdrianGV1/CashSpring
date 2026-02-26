@@ -1,46 +1,48 @@
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\application\service\ClienteService.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\application\service\CuotaService.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\application\service\PagoService.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\application\service\PdfGeneratorService.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\application\service\PrestamoService.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\CashSpringApplication.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\domain\enums\EstadoAprobacionPago.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\domain\enums\EstadoCuota.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\domain\enums\EstadoPrestamo.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\domain\enums\TipoAcuerdo.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\domain\util\CoordinateConverter.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\domain\util\MapUrlGenerator.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\DatabaseMigration.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\entity\ClienteEntity.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\entity\CuotaEntity.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\entity\PagoEntity.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\entity\PrestamoEntity.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\entity\UserEntity.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\jpa\ClienteJpaRepository.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\jpa\CuotaJpaRepository.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\jpa\PagoJpaRepository.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\jpa\PrestamoJpaRepository.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\jpa\UserJpaRepository.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\security\SecurityConfig.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\security\UserDetailsServiceImpl.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\ClienteController.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\CuotaController.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\PagoController.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\PdfController.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\PrestamoController.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\cliente\ClienteCreateRequest.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\cliente\ClienteResponse.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\cliente\ClienteUpdateRequest.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\cuota\CuotaCreateRequest.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\cuota\CuotaResponse.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\cuota\CuotaUpdateRequest.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\pago\PagoCreateRequest.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\pago\PagoResponse.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\pago\PagoUpdateRequest.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\prestamo\PrestamoCreateRequest.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\prestamo\PrestamoResponse.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\prestamo\PrestamoUpdateRequest.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\exception\ApiExceptionHandler.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\exception\BusinessException.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\exception\NotFoundException.java
-D:\VS CODE PROYECTOS\CashSpring\src\main\java\com\proyect\CashSpring\web\mapper\PrestamoMapper.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\application\service\ClienteService.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\application\service\CuotaService.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\application\service\PagoService.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\application\service\PdfGeneratorService.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\application\service\PenalizacionService.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\application\service\PrestamoService.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\CashSpringApplication.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\domain\enums\EstadoAprobacionPago.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\domain\enums\EstadoCuota.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\domain\enums\EstadoPrestamo.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\domain\enums\TipoAcuerdo.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\domain\util\CoordinateConverter.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\domain\util\MapUrlGenerator.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\DatabaseMigration.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\entity\ClienteEntity.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\entity\CuotaEntity.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\entity\PagoEntity.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\entity\PrestamoEntity.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\entity\UserEntity.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\jpa\ClienteJpaRepository.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\jpa\CuotaJpaRepository.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\jpa\PagoJpaRepository.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\jpa\PrestamoJpaRepository.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\persistence\jpa\UserJpaRepository.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\security\SecurityConfig.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\infrastructure\security\UserDetailsServiceImpl.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\ClienteController.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\CuotaController.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\PagoController.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\PdfController.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\PenalizacionController.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\controller\PrestamoController.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\cliente\ClienteCreateRequest.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\cliente\ClienteResponse.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\cliente\ClienteUpdateRequest.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\cuota\CuotaCreateRequest.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\cuota\CuotaResponse.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\cuota\CuotaUpdateRequest.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\pago\PagoCreateRequest.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\pago\PagoResponse.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\pago\PagoUpdateRequest.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\prestamo\PrestamoCreateRequest.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\prestamo\PrestamoResponse.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\dto\prestamo\PrestamoUpdateRequest.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\exception\ApiExceptionHandler.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\exception\BusinessException.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\exception\NotFoundException.java
+c:\Users\diego\Desktop\ProyectoEdrian\CashSpring\src\main\java\com\proyect\CashSpring\web\mapper\PrestamoMapper.java

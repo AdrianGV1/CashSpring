@@ -68,6 +68,10 @@ public class PrestamoEntity {
     @Column(name = "es_extendido", nullable = false)
     private Boolean esExtendido = false;
 
+    @Builder.Default
+    @Column(name = "penalizacion_acumulada", nullable = false)
+    private Long penalizacionAcumulada = 0L;
+
     @CreationTimestamp
     @Column(name="created_at", nullable = false, updatable = false)
     private Instant createdAt;

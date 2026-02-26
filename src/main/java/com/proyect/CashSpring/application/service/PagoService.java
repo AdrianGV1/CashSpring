@@ -16,6 +16,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -25,10 +27,16 @@ public class PagoService {
 
     private final PagoJpaRepository pagoRepo;
     private final PrestamoJpaRepository prestamoRepo;
+    private final PenalizacionService penalizacionService;
+    
+    @PersistenceContext
+    private EntityManager entityManager;
 
-    public PagoService(PagoJpaRepository pagoRepo, PrestamoJpaRepository prestamoRepo) {
+    public PagoService(PagoJpaRepository pagoRepo, PrestamoJpaRepository prestamoRepo, 
+                      PenalizacionService penalizacionService) {
         this.pagoRepo = pagoRepo;
         this.prestamoRepo = prestamoRepo;
+        this.penalizacionService = penalizacionService;
     }
 
     private boolean isAdmin() {
@@ -146,81 +154,141 @@ public class PagoService {
             cuota.setFechaCubierta(null);
         }
 
-        // 3. Resetear estado del préstamo
+        // 3. Resetear estado y penalización del préstamo
         prestamo.setEstado(EstadoPrestamo.ACTIVO);
+        prestamo.setPenalizacionAcumulada(0L);
 
         // 4. Eliminar el pago que queremos revertir
         pagoRepo.delete(pago);
+        
+        // 5. Forzar escritura a BD y limpiar caché de Hibernate
+        entityManager.flush();
+        entityManager.clear();
 
-        // 5. Guardar el préstamo con las cuotas reseteadas
-        prestamoRepo.save(prestamo);
+        // 6. Recargar préstamo fresh desde BD (sin caché)
+        PrestamoEntity prestamoFresh = prestamoRepo.findById(prestamo.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Préstamo no encontrado"));
 
-        // 6. Volver a aplicar todos los pagos restantes en orden cronológico
+        // 7. Volver a aplicar todos los pagos restantes en orden cronológico
         for (PagoEntity pagoRestante : pagosRestantes) {
-            procesarCuotasConPago(prestamo, pagoRestante.getMonto(), pagoRestante.getFechaPago());
+            procesarCuotasConPago(prestamoFresh, pagoRestante.getMonto(), pagoRestante.getFechaPago());
         }
 
-        // 7. Guardar el estado final
-        prestamoRepo.save(prestamo);
+        // 8. Guardar el estado final y forzar a BD
+        prestamoRepo.save(prestamoFresh);
+        entityManager.flush();
     }
 
+    /**
+     * Procesa un pago aplicándolo con el siguiente orden de prioridad:
+     * 
+     * ORDEN DE APLICACIÓN DE PAGOS:
+     * 0. Se actualiza la penalización si aumentó (pasaron más días)
+     * 1. TODAS las cuotas ATRASADAS (ordenadas cronológicamente de más antigua a más reciente)
+     * 2. PENALIZACIÓN completa (solo después de pagar todas las atrasadas)
+     * 3. Cuotas PENDIENTES no vencidas (si aún sobra dinero)
+     * 4. Se actualiza el estado del préstamo
+     * 
+     * NOTA: Se usa fechaPago para determinar qué cuotas están atrasadas,
+     * lo cual es crítico al revertir pagos para mantener consistencia histórica.
+     */
     private void procesarCuotasConPago(PrestamoEntity prestamo, Long montoPago, LocalDate fechaPago) {
-        // Cuotas pendientes ordenadas de más antigua (menor número) a más reciente
-        List<CuotaEntity> pendientesAsc = prestamo.getCuotas().stream()
-                .filter(c -> c.getEstado() == EstadoCuota.PENDIENTE)
-                .sorted(Comparator.comparing(CuotaEntity::getNumeroCuota))
-                .collect(java.util.stream.Collectors.toList());
-
-        if (pendientesAsc.isEmpty()) {
-            return;
+        // ========== PASO 0: ACTUALIZAR PENALIZACIÓN SI AUMENTÓ ==========
+        // IMPORTANTE: Solo recalcular si hay cuotas PENDIENTES que puedan generar nueva penalización
+        // Si la penalización AUMENTÓ (pasaron más días), actualizarla
+        // Si ya se pagó parte de la penalización, NO sobrescribir
+        boolean tieneCuotasPendientes = prestamo.getCuotas().stream()
+                .anyMatch(c -> c.getEstado() == EstadoCuota.PENDIENTE);
+        
+        if (tieneCuotasPendientes) {
+            // Usar la fecha del pago para calcular la penalización correctamente
+            // (importante al revertir pagos para mantener consistencia histórica)
+            long penalizacionCalculada = penalizacionService.calcularPenalizacion(prestamo, fechaPago);
+            
+            // Solo actualizar si la nueva penalización es MAYOR a la actual
+            // Esto permite que:
+            // 1. La penalización aumente si pasaron más días
+            // 2. La penalización NO se sobrescriba si ya se pagó parte
+            if (penalizacionCalculada > prestamo.getPenalizacionAcumulada()) {
+                prestamo.setPenalizacionAcumulada(penalizacionCalculada);
+            }
         }
 
         long restante = montoPago;
 
-        // Paso 1: cancelar UNA SOLA cuota de la más cercana (menor número)
-        CuotaEntity masProxima = pendientesAsc.get(0);
-        long faltaProxima = masProxima.getMontoObjetivo() - masProxima.getMontoCancelado();
-
-        if (restante >= faltaProxima) {
-            // Cubre la cuota más próxima completamente
-            masProxima.setMontoCancelado(masProxima.getMontoObjetivo());
-            masProxima.setEstado(EstadoCuota.CUBIERTA);
-            masProxima.setFechaCubierta(fechaPago);
-            restante -= faltaProxima;
-
-            // Paso 2: el sobrante va a las cuotas MÁS LEJANAS (mayor número), de atrás hacia adelante
-            // Se refresca la lista sin la cuota ya cubierta
-            List<CuotaEntity> pendientesDesc = prestamo.getCuotas().stream()
-                    .filter(c -> c.getEstado() == EstadoCuota.PENDIENTE)
-                    .sorted(Comparator.comparing(CuotaEntity::getNumeroCuota).reversed())
-                    .collect(java.util.stream.Collectors.toList());
-
-            for (CuotaEntity cuota : pendientesDesc) {
-                if (restante <= 0) break;
-                long falta = cuota.getMontoObjetivo() - cuota.getMontoCancelado();
-                if (restante >= falta) {
-                    cuota.setMontoCancelado(cuota.getMontoObjetivo());
-                    cuota.setEstado(EstadoCuota.CUBIERTA);
-                    cuota.setFechaCubierta(fechaPago);
-                    restante -= falta;
-                } else {
-                    // Abono parcial a esta cuota lejana
-                    cuota.setMontoCancelado(cuota.getMontoCancelado() + restante);
-                    restante = 0;
-                }
+        // ========== PASO 1: SEPARAR CUOTAS ATRASADAS Y PENDIENTES ==========
+        // IMPORTANTE: Usar fechaPago para determinar qué cuotas están atrasadas
+        // (crítico al revertir pagos para mantener consistencia histórica)
+        
+        // Cuotas ATRASADAS (vencidas antes de la fecha del pago) ordenadas de más antigua a más reciente
+        List<CuotaEntity> cuotasAtrasadas = prestamo.getCuotas().stream()
+                .filter(c -> c.getEstado() == EstadoCuota.PENDIENTE)
+                .filter(c -> c.getFechaVencimiento().isBefore(fechaPago))
+                .sorted(Comparator.comparing(CuotaEntity::getFechaVencimiento))
+                .collect(java.util.stream.Collectors.toList());
+        
+        // Cuotas PENDIENTES pero NO vencidas (con vencimiento >= fechaPago)
+        List<CuotaEntity> cuotasPendientes = prestamo.getCuotas().stream()
+                .filter(c -> c.getEstado() == EstadoCuota.PENDIENTE)
+                .filter(c -> !c.getFechaVencimiento().isBefore(fechaPago))
+                .sorted(Comparator.comparing(CuotaEntity::getFechaVencimiento))
+                .collect(java.util.stream.Collectors.toList());
+        
+        // ========== PASO 2: PAGAR TODAS LAS CUOTAS ATRASADAS PRIMERO ==========
+        for (CuotaEntity cuota : cuotasAtrasadas) {
+            if (restante <= 0) break;
+            
+            long falta = cuota.getMontoObjetivo() - cuota.getMontoCancelado();
+            
+            if (restante >= falta) {
+                // Cubre la cuota completamente
+                cuota.setMontoCancelado(cuota.getMontoObjetivo());
+                cuota.setEstado(EstadoCuota.CUBIERTA);
+                cuota.setFechaCubierta(fechaPago);
+                restante -= falta;
+            } else {
+                // Abono parcial a esta cuota
+                cuota.setMontoCancelado(cuota.getMontoCancelado() + restante);
+                restante = 0;
             }
-        } else {
-            // No alcanza para cubrir ni la más próxima: abono parcial a ella
-            masProxima.setMontoCancelado(masProxima.getMontoCancelado() + restante);
-            restante = 0;
+        }
+        
+        // ========== PASO 3: PAGAR PENALIZACIÓN (solo después de TODAS las atrasadas) ==========
+        if (restante > 0 && prestamo.getPenalizacionAcumulada() > 0) {
+            long penalizacionActual = prestamo.getPenalizacionAcumulada();
+            
+            if (restante >= penalizacionActual) {
+                // El pago cubre toda la penalización
+                prestamo.setPenalizacionAcumulada(0L);
+                restante -= penalizacionActual;
+            } else {
+                // El pago cubre parte de la penalización
+                prestamo.setPenalizacionAcumulada(penalizacionActual - restante);
+                restante = 0;
+            }
+        }
+        
+        // ========== PASO 4: PAGAR CUOTAS PENDIENTES (no vencidas) si aún sobra ==========
+        for (CuotaEntity cuota : cuotasPendientes) {
+            if (restante <= 0) break;
+            
+            long falta = cuota.getMontoObjetivo() - cuota.getMontoCancelado();
+            
+            if (restante >= falta) {
+                // Cubre la cuota completamente
+                cuota.setMontoCancelado(cuota.getMontoObjetivo());
+                cuota.setEstado(EstadoCuota.CUBIERTA);
+                cuota.setFechaCubierta(fechaPago);
+                restante -= falta;
+            } else {
+                // Abono parcial a esta cuota
+                cuota.setMontoCancelado(cuota.getMontoCancelado() + restante);
+                restante = 0;
+            }
         }
 
-        // Si todas las cuotas están cubiertas, marcar el préstamo como PAGADO
-        boolean todasCubiertas = !prestamo.getCuotas().isEmpty() &&
-                prestamo.getCuotas().stream().allMatch(c -> c.getEstado() == EstadoCuota.CUBIERTA);
-        if (todasCubiertas) {
-            prestamo.setEstado(EstadoPrestamo.PAGADO);
-        }
+        // ========== PASO 5: ACTUALIZAR ESTADO DEL PRÉSTAMO ==========
+        penalizacionService.actualizarEstadoPrestamo(prestamo);
     }
 
     @Transactional(readOnly = true)

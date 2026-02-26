@@ -91,9 +91,11 @@ const PrestamoDetailPage = () => {
       }
     }
     
-    // Filtrar solo pagos aprobados
-    const pagosAprobados = pagos.filter(p => p.estadoAprobacion === 'APROBADO');
-    const montoPendiente = prestamo.totalObjetivo - pagosAprobados.reduce((sum, p) => sum + p.monto, 0);
+    // Calcular saldo pendiente usando el cálculo correcto
+    const cuotasPendientesRestante = cuotas
+      .filter(c => c.estado === 'PENDIENTE')
+      .reduce((sum, c) => sum + (c.montoObjetivo - (c.montoCancelado || 0)), 0);
+    const montoPendiente = cuotasPendientesRestante + (prestamo.penalizacionAcumulada || 0);
     const montoIngresado = Number(pagoData.monto);
     if (montoIngresado > montoPendiente) {
       setPagoError(`El monto excede el saldo pendiente. Máximo permitido: ₡${montoPendiente.toLocaleString('es-CR')}`);
@@ -146,8 +148,14 @@ const PrestamoDetailPage = () => {
     try {
       setReverting(pagoId);
       await pagoApi.revertir(pagoId);
-      alert('✅ Pago revertido exitosamente.\n\nLas cuotas han sido restauradas a su estado anterior.');
+      
+      // Pequeño delay para asegurar que la transacción del backend se complete
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Recargar datos
       await loadData();
+      
+      alert('✅ Pago revertido exitosamente.\n\nLas cuotas han sido restauradas a su estado anterior.');
     } catch (err) {
       console.error('Error al revertir pago:', err);
       alert('❌ Error al revertir el pago: ' + (err.response?.data?.message || err.message));
@@ -281,15 +289,60 @@ const PrestamoDetailPage = () => {
     return <span className={`badge ${badge.class}`}>{badge.text}</span>;
   };
 
-  const calcularProgreso = () => {
-    // Filtrar solo pagos aprobados
-    const pagosAprobados = pagos.filter(p => p.estadoAprobacion === 'APROBADO');
-    const totalPagado = pagosAprobados.reduce((sum, pago) => sum + pago.monto, 0);
-    const porcentaje = (totalPagado / prestamo.totalObjetivo) * 100;
+  const calcularProgresoCuotas = () => {
+    // Calcular progreso solo de las CUOTAS (sin penalización)
+    const totalCuotas = cuotas.reduce((sum, c) => sum + c.montoObjetivo, 0);
+    const totalCuotasPagado = cuotas.reduce((sum, c) => sum + (c.montoCancelado || 0), 0);
+    const porcentaje = totalCuotas > 0 ? (totalCuotasPagado / totalCuotas) * 100 : 0;
     return {
-      totalPagado,
+      totalCuotas,
+      totalCuotasPagado,
+      porcentaje: Math.min(porcentaje, 100),
+      restanteCuotas: totalCuotas - totalCuotasPagado
+    };
+  };
+
+  const calcularProgresoPenalizacion = () => {
+    // Calcular cuánto se ha pagado EN penalización
+    const pagosAprobados = pagos.filter(p => p.estadoAprobacion === 'APROBADO');
+    const totalPagadoGeneral = pagosAprobados.reduce((sum, pago) => sum + pago.monto, 0);
+    const totalPagadoEnCuotas = cuotas.reduce((sum, c) => sum + (c.montoCancelado || 0), 0);
+    
+    // Lo que sobra después de pagar cuotas es lo pagado en penalización
+    const penalizacionPagada = Math.max(0, totalPagadoGeneral - totalPagadoEnCuotas);
+    const penalizacionActual = prestamo.penalizacionAcumulada || 0;
+    const penalizacionTotal = penalizacionPagada + penalizacionActual;
+    
+    const porcentaje = penalizacionTotal > 0 ? (penalizacionPagada / penalizacionTotal) * 100 : 0;
+    
+    return {
+      penalizacionPagada,
+      penalizacionActual,
+      penalizacionTotal,
       porcentaje: Math.min(porcentaje, 100)
     };
+  };
+
+  const calcularProgreso = () => {
+    // Mantener para compatibilidad con código existente
+    const pagosAprobados = pagos.filter(p => p.estadoAprobacion === 'APROBADO');
+    const totalPagado = pagosAprobados.reduce((sum, pago) => sum + pago.monto, 0);
+    const totalAdeudado = prestamo.totalObjetivo + (prestamo.penalizacionAcumulada || 0);
+    return {
+      totalPagado,
+      totalAdeudado
+    };
+  };
+
+  const calcularRestante = () => {
+    // Calcular el restante real sumando:
+    // 1. Las cuotas pendientes (montoObjetivo - montoCancelado)
+    // 2. La penalización acumulada
+    const cuotasPendientes = cuotas
+      .filter(c => c.estado === 'PENDIENTE')
+      .reduce((sum, c) => sum + (c.montoObjetivo - (c.montoCancelado || 0)), 0);
+    
+    return cuotasPendientes + (prestamo.penalizacionAcumulada || 0);
   };
 
   if (loading) {
@@ -314,8 +367,12 @@ const PrestamoDetailPage = () => {
   }
 
   const progreso = calcularProgreso();
+  const progresoCuotas = calcularProgresoCuotas();
+  const progresoPenalizacion = calcularProgresoPenalizacion();
   const estaLiquidado = prestamo.estado === 'LIQUIDADO';
-  const estaCompleto = estaLiquidado || progreso.totalPagado >= prestamo.totalObjetivo;
+  const restanteReal = calcularRestante();
+  // Un préstamo está completo solo si el restante es exactamente ₡0
+  const estaCompleto = estaLiquidado || restanteReal === 0;
 
   return (
     <div className="container">
@@ -389,7 +446,7 @@ const PrestamoDetailPage = () => {
           </button>
         )}
         {prestamo.tipoAcuerdo === 'QUINCENAS_DOBLES' && !prestamo.esExtendido && !estaCompleto && (() => {
-          const puedeExtender = progreso.porcentaje >= 50;
+          const puedeExtender = progresoCuotas.porcentaje >= 50;
           return (
             <button
               onClick={() => {
@@ -417,7 +474,7 @@ const PrestamoDetailPage = () => {
               title={
                 puedeExtender
                   ? 'Extender préstamo'
-                  : `Debes pagar al menos el 50% para extender (pagado: ${progreso.porcentaje.toFixed(1)}%)`
+                  : `Debes pagar al menos el 50% de las cuotas para extender (pagado: ${progresoCuotas.porcentaje.toFixed(1)}%)`
               }
             >
               {showExtensionForm ? 'Cancelar Extensión' : '🔄 Extender Préstamo'}
@@ -624,8 +681,8 @@ const PrestamoDetailPage = () => {
             <strong>No es posible extender el préstamo aún.</strong>
             <br />
             <span>
-              Debes haber pagado al menos el <strong>50%</strong> del total del préstamo para poder extenderlo.
-              Progreso actual: <strong>{progreso.porcentaje.toFixed(1)}%</strong> de {formatMoney(prestamo.totalObjetivo)} ({formatMoney(progreso.totalPagado)} pagado).
+              Debes haber pagado al menos el <strong>50%</strong> de las cuotas del préstamo para poder extenderlo.
+              Progreso de cuotas: <strong>{progresoCuotas.porcentaje.toFixed(1)}%</strong> ({formatMoney(progresoCuotas.totalCuotasPagado)} de {formatMoney(progresoCuotas.totalCuotas)} pagado).
             </span>
           </div>
           <button
@@ -801,11 +858,16 @@ const PrestamoDetailPage = () => {
                     onChange={(e) => { setPagoError(null); setPagoData({...pagoData, monto: e.target.value}); }}
                     required
                     min="1"
-                    max={prestamo.totalObjetivo - progreso.totalPagado}
+                    max={restanteReal}
                     placeholder="Ej: 50000"
                   />
                   <small style={{ color: '#6c757d' }}>
-                    Saldo pendiente: ₡{(prestamo.totalObjetivo - progreso.totalPagado).toLocaleString('es-CR')}
+                    Saldo pendiente: ₡{restanteReal.toLocaleString('es-CR')}
+                    {prestamo.penalizacionAcumulada > 0 && (
+                      <span style={{ color: '#dc3545', display: 'block', marginTop: '0.25rem' }}>
+                        (Incluye penalización de ₡{prestamo.penalizacionAcumulada.toLocaleString('es-CR')})
+                      </span>
+                    )}
                   </small>
                 </div>
                 <div className="form-group">
@@ -866,6 +928,17 @@ const PrestamoDetailPage = () => {
                 <span className="label">Total a Pagar:</span>
                 <span className="value total-amount">{formatMoney(prestamo.totalObjetivo)}</span>
               </div>
+              {prestamo.penalizacionAcumulada > 0 && (
+                <div className="info-item" style={{ backgroundColor: '#fff5f5', padding: '0.75rem', borderRadius: '6px', border: '1px solid #ffcccc' }}>
+                  <span className="label" style={{ color: '#dc3545', fontWeight: 'bold' }}>⚠️ Penalización por Atraso:</span>
+                  <span className="value" style={{ color: '#dc3545', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                    {formatMoney(prestamo.penalizacionAcumulada)}
+                  </span>
+                  <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.25rem' }}>
+                    ₡5,000 por día de retraso
+                  </div>
+                </div>
+              )}
               <div className="info-item">
                 <span className="label">Tipo de Acuerdo:</span>
                 <span className="value">{getTipoAcuerdoText(prestamo.tipoAcuerdo)}</span>
@@ -913,41 +986,121 @@ const PrestamoDetailPage = () => {
             <h3>Progreso de Pago</h3>
           </div>
           <div className="card-body">
-            <div className="progress-section">
+            
+            {/* Progreso de Cuotas */}
+            <div className="progress-section" style={{ marginBottom: '1.5rem' }}>
+              <div style={{ marginBottom: '0.5rem', fontWeight: 600, color: '#1f2937' }}>
+                📋 Cuotas del Préstamo
+              </div>
               <div className="progress-bar-container">
                 <div 
                   className="progress-bar-fill"
                   style={{
-                    width: `${progreso.porcentaje}%`,
-                    background: estaCompleto
+                    width: `${progresoCuotas.porcentaje}%`,
+                    background: progresoCuotas.restanteCuotas === 0
                       ? 'linear-gradient(90deg, #10b981, #059669)'
-                      : undefined
+                      : 'linear-gradient(90deg, #3b82f6, #2563eb)'
                   }}
                 >
-                  {estaCompleto ? '✔ 100%' : `${progreso.porcentaje.toFixed(1)}%`}
+                  {progresoCuotas.restanteCuotas === 0 
+                    ? '✔ 100%' 
+                    : `${progresoCuotas.porcentaje.toFixed(1)}%`}
                 </div>
               </div>
-              <div className="progress-info">
+              <div className="progress-info" style={{ marginTop: '0.75rem' }}>
                 <div className="info-item">
-                  <span className="label">Total Pagado:</span>
-                  <span className="value success">{formatMoney(progreso.totalPagado)}</span>
+                  <span className="label">Pagado:</span>
+                  <span className="value" style={{ color: '#3b82f6' }}>
+                    {formatMoney(progresoCuotas.totalCuotasPagado)}
+                  </span>
                 </div>
                 <div className="info-item">
                   <span className="label">Restante:</span>
-                  {estaCompleto ? (
-                    <span style={{ color: '#10b981', fontWeight: 700 }}>¡Saldado! ₡0</span>
-                  ) : (
-                    <span className="value danger">
-                      {formatMoney(prestamo.totalObjetivo - progreso.totalPagado)}
-                    </span>
-                  )}
+                  <span className={`value ${progresoCuotas.restanteCuotas === 0 ? 'success' : 'danger'}`}>
+                    {formatMoney(progresoCuotas.restanteCuotas)}
+                  </span>
                 </div>
                 <div className="info-item">
-                  <span className="label">Total Pagos:</span>
-                  <span className="value">{pagos.length}</span>
+                  <span className="label">Total Cuotas:</span>
+                  <span className="value">{formatMoney(progresoCuotas.totalCuotas)}</span>
                 </div>
               </div>
             </div>
+
+            {/* Progreso de Penalización - Solo si existe */}
+            {progresoPenalizacion.penalizacionTotal > 0 && (
+              <div className="progress-section" style={{ 
+                marginBottom: '1rem',
+                padding: '1rem',
+                background: '#fef2f2',
+                borderRadius: '0.5rem',
+                border: '1px solid #fecaca'
+              }}>
+                <div style={{ marginBottom: '0.5rem', fontWeight: 600, color: '#dc2626' }}>
+                  ⚠️ Penalización por Atraso
+                </div>
+                <div className="progress-bar-container">
+                  <div 
+                    className="progress-bar-fill"
+                    style={{
+                      width: `${progresoPenalizacion.porcentaje}%`,
+                      background: progresoPenalizacion.penalizacionActual === 0
+                        ? 'linear-gradient(90deg, #10b981, #059669)'
+                        : 'linear-gradient(90deg, #ef4444, #dc2626)'
+                    }}
+                  >
+                    {progresoPenalizacion.penalizacionActual === 0
+                      ? '✔ 100%'
+                      : `${progresoPenalizacion.porcentaje.toFixed(1)}%`}
+                  </div>
+                </div>
+                <div className="progress-info" style={{ marginTop: '0.75rem' }}>
+                  <div className="info-item">
+                    <span className="label">Pagado:</span>
+                    <span className="value" style={{ color: '#ef4444' }}>
+                      {formatMoney(progresoPenalizacion.penalizacionPagada)}
+                    </span>
+                  </div>
+                  <div className="info-item">
+                    <span className="label">Pendiente:</span>
+                    <span className={`value ${progresoPenalizacion.penalizacionActual === 0 ? 'success' : 'danger'}`}>
+                      {formatMoney(progresoPenalizacion.penalizacionActual)}
+                    </span>
+                  </div>
+                  <div className="info-item">
+                    <span className="label">Total Generado:</span>
+                    <span className="value">{formatMoney(progresoPenalizacion.penalizacionTotal)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Resumen General */}
+            <div style={{ 
+              borderTop: '2px solid #e5e7eb', 
+              paddingTop: '1rem',
+              marginTop: '0.5rem'
+            }}>
+              <div className="progress-info">
+                <div className="info-item">
+                  <span className="label">Total Pagado General:</span>
+                  <span className="value success">{formatMoney(progreso.totalPagado)}</span>
+                </div>
+                <div className="info-item">
+                  <span className="label">Restante Total:</span>
+                  {restanteReal === 0 ? (
+                    <span style={{ color: '#10b981', fontWeight: 700 }}>¡Saldado! ₡0</span>
+                  ) : (
+                    <span className="value danger">{formatMoney(restanteReal)}</span>
+                  )}
+                </div>
+                <div className="info-item">
+                  <span className="label">Total Pagos Registrados:</span>
+                  <span className="value">{pagos.filter(p => p.estadoAprobacion === 'APROBADO').length}</span>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>

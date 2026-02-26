@@ -151,6 +151,15 @@ const PrestamoCard = ({ prestamo, clienteNombre }) => {
             <span className="value total-amount">{formatMoney(prestamo.totalObjetivo)}</span>
           </div>
           
+          {prestamo.penalizacionAcumulada > 0 && (
+            <div className="info-item" style={{ gridColumn: '1 / -1', backgroundColor: '#fff5f5', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ffcccc' }}>
+              <span className="label" style={{ color: '#dc3545', fontWeight: 'bold' }}>⚠️ Penalización:</span>
+              <span className="value" style={{ color: '#dc3545', fontWeight: 'bold' }}>
+                {formatMoney(prestamo.penalizacionAcumulada)}
+              </span>
+            </div>
+          )}
+          
           <div className="info-item">
             <span className="label">Interés:</span>
             <span className="value">{(prestamo.interesBase * 100).toFixed(2)}%</span>

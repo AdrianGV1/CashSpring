@@ -26,6 +26,7 @@ public class PrestamoResponse {
     private Long montoExtendido;
 
     private Long montoLiquidacion;
+    private Long penalizacionAcumulada;
 
     private List<CuotaItem> cuotas;
 
@@ -87,6 +88,9 @@ public class PrestamoResponse {
 
     public Long getMontoLiquidacion() { return montoLiquidacion; }
     public void setMontoLiquidacion(Long montoLiquidacion) { this.montoLiquidacion = montoLiquidacion; }
+
+    public Long getPenalizacionAcumulada() { return penalizacionAcumulada; }
+    public void setPenalizacionAcumulada(Long penalizacionAcumulada) { this.penalizacionAcumulada = penalizacionAcumulada; }
 
     public List<CuotaItem> getCuotas() { return cuotas; }
     public void setCuotas(List<CuotaItem> cuotas) { this.cuotas = cuotas; }
