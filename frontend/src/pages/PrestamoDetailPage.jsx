@@ -537,7 +537,7 @@ const PrestamoDetailPage = () => {
             {showPagoForm ? 'Cancelar' : '+ Registrar Pago'}
           </button>
         )}
-        {prestamo.tipoAcuerdo === 'QUINCENAS_DOBLES' && !prestamo.esExtendido && !estaCompleto && (() => {
+        {prestamo.tipoAcuerdo === 'QUINCENAS_DOBLES' && !estaCompleto && (() => {
           const tienePenalizacion = prestamo.penalizacionAcumulada && prestamo.penalizacionAcumulada > 0;
           const puedeExtender = progresoCuotas.porcentaje >= 50 && !tienePenalizacion;
           
@@ -1125,7 +1125,7 @@ const PrestamoDetailPage = () => {
                 <span className="label">Extensión:</span>
                 {prestamo.esExtendido ? (
                   <span className="badge" style={{ background: '#6f42c1', color: '#fff', padding: '0.25rem 0.6rem', borderRadius: '12px', fontSize: '0.8rem' }}>
-                    ✅ Préstamo extendido
+                    ✅ Extendido {prestamo.numeroExtensiones > 1 ? `${prestamo.numeroExtensiones} veces` : '1 vez'}
                   </span>
                 ) : (
                   <span style={{ color: '#6c757d', fontSize: '0.9rem' }}>No extendido</span>
@@ -1133,7 +1133,7 @@ const PrestamoDetailPage = () => {
               </div>
               {prestamo.esExtendido && prestamo.montoExtendido > 0 && (
                 <div className="info-item">
-                  <span className="label">Monto extendido:</span>
+                  <span className="label">Total extendido:</span>
                   <span className="value" style={{ color: '#6f42c1' }}>{formatMoney(prestamo.montoExtendido)}</span>
                 </div>
               )}

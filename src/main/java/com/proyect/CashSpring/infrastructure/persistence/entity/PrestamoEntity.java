@@ -69,6 +69,10 @@ public class PrestamoEntity {
     private Boolean esExtendido = false;
 
     @Builder.Default
+    @Column(name = "numero_extensiones", nullable = false)
+    private Integer numeroExtensiones = 0;
+
+    @Builder.Default
     @Column(name = "penalizacion_acumulada", nullable = false)
     private Long penalizacionAcumulada = 0L;
 

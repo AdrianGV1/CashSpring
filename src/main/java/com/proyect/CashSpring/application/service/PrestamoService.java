@@ -114,8 +114,9 @@ public class PrestamoService {
         long totalNuevo = montoNuevo * 2;
         prestamo.setMontoPrestado(montoNuevo);
         prestamo.setTotalObjetivo(totalNuevo);
-        prestamo.setMontoExtendido(montoExtendido);
+        prestamo.setMontoExtendido(prestamo.getMontoExtendido() + montoExtendido);
         prestamo.setEsExtendido(true);
+        prestamo.setNumeroExtensiones(prestamo.getNumeroExtensiones() + 1);
 
         // Monto por cuota: si no se indicó, usar el monto de la primera cuota existente
         long mpc;
@@ -664,6 +665,7 @@ public class PrestamoService {
         resp.setEstado(p.getEstado());
         resp.setEsExtendido(p.getEsExtendido());
         resp.setMontoExtendido(p.getMontoExtendido());
+        resp.setNumeroExtensiones(p.getNumeroExtensiones() != null ? p.getNumeroExtensiones() : 0);
 
         // montoLiquidacion siempre calculado dinámicamente
         long montoLiq = calcularTotalMontoMasInteres(p.getMontoPrestado(), p.getInteresBase());

@@ -24,6 +24,7 @@ public class PrestamoResponse {
 
     private Boolean esExtendido;
     private Long montoExtendido;
+    private Integer numeroExtensiones;
 
     private Long montoLiquidacion;
     private Long penalizacionAcumulada;
@@ -92,6 +93,9 @@ public class PrestamoResponse {
 
     public Long getMontoExtendido() { return montoExtendido; }
     public void setMontoExtendido(Long montoExtendido) { this.montoExtendido = montoExtendido; }
+
+    public Integer getNumeroExtensiones() { return numeroExtensiones; }
+    public void setNumeroExtensiones(Integer numeroExtensiones) { this.numeroExtensiones = numeroExtensiones; }
 
     public Long getMontoLiquidacion() { return montoLiquidacion; }
     public void setMontoLiquidacion(Long montoLiquidacion) { this.montoLiquidacion = montoLiquidacion; }

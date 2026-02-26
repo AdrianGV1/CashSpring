@@ -295,21 +295,47 @@ public class PagoService {
         }
         
         // ========== PASO 4: PAGAR CUOTAS PENDIENTES (no vencidas) si aún sobra ==========
-        for (CuotaEntity cuota : cuotasPendientes) {
-            if (restante <= 0) break;
-            
-            long falta = cuota.getMontoObjetivo() - cuota.getMontoCancelado();
-            
-            if (restante >= falta) {
-                // Cubre la cuota completamente
-                cuota.setMontoCancelado(cuota.getMontoObjetivo());
-                cuota.setEstado(EstadoCuota.CUBIERTA);
-                cuota.setFechaCubierta(fechaPago);
-                restante -= falta;
+        // REGLA: Primero se cubre la cuota MÁS PRÓXIMA (next-due).
+        //        Si sobra dinero después de cubrirla, el excedente va a las cuotas MÁS LEJANAS
+        //        primero (de atrás hacia adelante), NO a las siguientes en orden.
+        if (!cuotasPendientes.isEmpty() && restante > 0) {
+            // 4a. Cuota más próxima (primer elemento de la lista ordenada ASC)
+            CuotaEntity masProxima = cuotasPendientes.get(0);
+            long faltaProxima = masProxima.getMontoObjetivo() - masProxima.getMontoCancelado();
+
+            if (restante >= faltaProxima) {
+                masProxima.setMontoCancelado(masProxima.getMontoObjetivo());
+                masProxima.setEstado(EstadoCuota.CUBIERTA);
+                masProxima.setFechaCubierta(fechaPago);
+                restante -= faltaProxima;
             } else {
-                // Abono parcial a esta cuota
-                cuota.setMontoCancelado(cuota.getMontoCancelado() + restante);
+                masProxima.setMontoCancelado(masProxima.getMontoCancelado() + restante);
                 restante = 0;
+            }
+
+            // 4b. Excedente → cuotas LEJANAS primero (de la última hacia la segunda).
+            //     Se excluye explícitamente masProxima por id para evitar doble conteo,
+            //     independientemente de si quedó CUBIERTA o PENDIENTE (abono parcial → restante=0).
+            if (restante > 0 && cuotasPendientes.size() > 1) {
+                List<CuotaEntity> lejanas = cuotasPendientes.stream()
+                        .filter(c -> !c.getId().equals(masProxima.getId()))
+                        .filter(c -> c.getEstado() == EstadoCuota.PENDIENTE)
+                        .sorted(Comparator.comparing(CuotaEntity::getFechaVencimiento).reversed()) // farthest first
+                        .collect(java.util.stream.Collectors.toList());
+
+                for (CuotaEntity cuota : lejanas) {
+                    if (restante <= 0) break;
+                    long falta = cuota.getMontoObjetivo() - cuota.getMontoCancelado();
+                    if (restante >= falta) {
+                        cuota.setMontoCancelado(cuota.getMontoObjetivo());
+                        cuota.setEstado(EstadoCuota.CUBIERTA);
+                        cuota.setFechaCubierta(fechaPago);
+                        restante -= falta;
+                    } else {
+                        cuota.setMontoCancelado(cuota.getMontoCancelado() + restante);
+                        restante = 0;
+                    }
+                }
             }
         }
 
