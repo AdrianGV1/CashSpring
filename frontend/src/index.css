@@ -137,22 +137,27 @@ body {
   border: 1px solid #e5e7eb;
 }
 
-/* Filter buttons */
+/* Filter buttons - cuadrados y con color */
 .filter-btn {
-  padding: 0.5rem 1.25rem;
-  border-radius: 0.375rem;
+  padding: 0 0.9rem;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
   border: 2px solid transparent;
   font-weight: 600;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.18s;
+  transition: transform 0.14s, box-shadow 0.14s, opacity 0.14s;
   background: #f3f4f6;
   color: #374151;
   white-space: nowrap;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02);
 }
-.filter-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.filter-btn:hover { opacity: 0.95; transform: translateY(-2px); box-shadow: 0 6px 14px rgba(16,24,40,0.06); }
 
-.filter-btn-gray { border-color: #9ca3af; background: #f3f4f6; color: #374151; }
+.filter-btn-gray { border-color: #9ca3af; background: #ffffff; color: #374151; }
 .filter-btn-gray.active { background: #6b7280; border-color: #6b7280; color: #fff; }
 
 .filter-btn-red { border-color: #fca5a5; background: #fff1f1; color: #dc2626; }
@@ -164,7 +169,26 @@ body {
 .filter-btn-blue { border-color: #93c5fd; background: #eff6ff; color: #2563eb; }
 .filter-btn-blue.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
 
+/* Yellow for pendientes (similar to badge warning) */
+.filter-btn-yellow { border-color: #ffe8a1; background: #fff; color: #8a6d00; }
+.filter-btn-yellow:hover { background: rgba(255,193,7,0.06); }
+.filter-btn-yellow:active { background: rgba(255,193,7,0.12); }
+.filter-btn-yellow.active { background: #ffc107; border-color: #ffc107; color: #3b2f00; }
+
 .filter-buttons { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+
+/* Date input small clean style */
+.date-input {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  font-size: 0.95rem;
+  color: #111827;
+  outline: none;
+}
+.date-input:focus { box-shadow: 0 0 0 4px rgba(59,130,246,0.08); border-color: #3b82f6; }
+.date-input::-webkit-calendar-picker-indicator { filter: invert(0.2); }
 
 .card {
   background: white;
@@ -399,6 +423,31 @@ a {
 .quick-actions {
   margin-top: 2rem;
 }
+
+/* Header sticker (small pill near titles) */
+.header-sticker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.5rem;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.header-total {
+  text-align: right;
+}
+.header-total .label { font-size: 0.85rem; color: #6b7280; }
+.header-total .value { font-size: 1.25rem; font-weight: 700; color: #111827; }
+
+/* Título con icono y total alineado */
+.title-wrapper { display: flex; align-items: center; gap: 0.6rem; }
+.title-icon { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.15rem; border-radius: 6px; }
+.total-aligned { margin-left: 48px; margin-top: 0.5rem; color: #374151; }
 
 .quick-actions h3 {
   margin-bottom: 1rem;

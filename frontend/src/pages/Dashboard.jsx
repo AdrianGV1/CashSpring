@@ -11,9 +11,8 @@ import useAutoRefresh from '../hooks/useAutoRefresh';
 import { getCacheWithTTL, setCacheWithTTL } from '../services/cache';
 
 const CACHE_KEY = 'dashboard_summary_v1';
-const TTL_MS = 5 * 60 * 1000; // 5 minutos
+const TTL_MS = 5 * 60 * 1000; 
 
-// ✅ Mapea diferentes nombres de campos (por si tu backend usa otros)
 function mapSummaryToStats(summary) {
   return {
     totalClientes:
@@ -70,7 +69,6 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useAutoRefresh(() => loadData(true));
@@ -79,7 +77,6 @@ const Dashboard = () => {
     try {
       if (!silent) setLoading(true);
 
-      // 1) Pintar cache instantáneo (solo en carga normal)
       if (!silent) {
         const cached = getCacheWithTTL(CACHE_KEY);
         if (cached) {
@@ -88,14 +85,11 @@ const Dashboard = () => {
         }
       }
 
-      // 2) ✅ Pedir summary con AXIOS (api) -> incluye Basic Auth por interceptor
-      // Tu backend usa /api/... (según clienteApi.getAll)
       const summary = await api.get('/api/dashboard/summary').then(r => r.data);
 
       setStats(mapSummaryToStats(summary));
       setCacheWithTTL(CACHE_KEY, summary, TTL_MS);
 
-      // 3) Admin: solicitudes pendientes
       if (userIsAdmin) {
         try {
           const solicitudes = await pagoApi.getSolicitudesPendientes();
@@ -202,7 +196,6 @@ const Dashboard = () => {
       <div className="page-header">
         <div>
           <h1>🏠 Inicio</h1>
-          <p className="subtitle">Resumen general de tu negocio de microfinanzas</p>
         </div>
       </div>
 

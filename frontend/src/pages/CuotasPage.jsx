@@ -8,6 +8,8 @@ const CuotasPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filtro, setFiltro] = useState('PENDIENTE');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -80,7 +82,30 @@ const CuotasPage = () => {
     return c.estado === filtro;
   });
 
-  const cuotasOrdenadas = [...cuotasFiltradas].sort(
+  const inDateRange = (cuota) => {
+    if (!startDate && !endDate) return true;
+
+    const parseDateInput = (value, endOfDay = false) => {
+      if (!value) return null;
+      const parts = value.split('-').map((p) => parseInt(p, 10));
+      if (parts.length !== 3 || parts.some(isNaN)) return null;
+      const [y, m, d] = parts;
+      if (endOfDay) return new Date(y, m - 1, d, 23, 59, 59, 999);
+      return new Date(y, m - 1, d, 0, 0, 0, 0);
+    };
+
+    const fecha = new Date(cuota.fechaVencimiento);
+    const sd = parseDateInput(startDate, false);
+    const ed = parseDateInput(endDate, true);
+
+    if (sd && fecha < sd) return false;
+    if (ed && fecha > ed) return false;
+    return true;
+  };
+
+  const cuotasFiltradasPorFecha = cuotasFiltradas.filter((c) => inDateRange(c));
+
+  const cuotasOrdenadas = [...cuotasFiltradasPorFecha].sort(
     (a, b) => new Date(a.fechaVencimiento) - new Date(b.fechaVencimiento)
   );
 
@@ -109,39 +134,76 @@ const CuotasPage = () => {
 
   return (
     <div className="container">
-      <div className="page-header">
-        <div>
-          <h1>Cuotas</h1>
-          <p className="subtitle">Seguimiento de cuotas de todos los prestamos</p>
+      <div className='mb-8'>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+          <div className='title-wrapper'>
+            <span className='title-icon'>💸</span>
+            <h1 className='text-2xl font-bold text-gray-800' style={{ margin: 0 }}>Lista de Cuotas</h1>
+          </div>
         </div>
+
+        <p className='total-aligned'>
+          Total: <strong>{cuotasOrdenadas.length}</strong> cuota{cuotasOrdenadas.length !== 1 ? 's' : ''}
+        </p>
       </div>
 
       <div className="filters-bar">
-        <div className="filter-buttons">
-          <button
-            className={`filter-btn ${filtro === 'TODOS' ? 'active' : ''}`}
-            onClick={() => setFiltro('TODOS')}
-          >
-            Todas ({cuotas.length})
-          </button>
-          <button
-            className={`filter-btn ${filtro === 'PENDIENTE' ? 'active' : ''}`}
-            onClick={() => setFiltro('PENDIENTE')}
-          >
-            Pendientes ({cuotasPendientes})
-          </button>
-          <button
-            className={`filter-btn ${filtro === 'CUBIERTA' ? 'active' : ''}`}
-            onClick={() => setFiltro('CUBIERTA')}
-          >
-            Cubiertas ({cuotasCubiertas})
-          </button>
-          <button
-            className={`filter-btn ${filtro === 'VENCIDAS' ? 'active' : ''}`}
-            onClick={() => setFiltro('VENCIDAS')}
-          >
-            Vencidas ({cuotasVencidas})
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+          <div className="filter-buttons">
+            <button
+              className={`filter-btn filter-btn-gray ${filtro === 'TODOS' ? 'active' : ''}`}
+              onClick={() => setFiltro('TODOS')}
+            >
+              Todas ({cuotas.length})
+            </button>
+            <button
+              className={`filter-btn filter-btn-yellow ${filtro === 'PENDIENTE' ? 'active' : ''}`}
+              onClick={() => setFiltro('PENDIENTE')}
+            >
+              Pendientes ({cuotasPendientes})
+            </button>
+            <button
+              className={`filter-btn filter-btn-green ${filtro === 'CUBIERTA' ? 'active' : ''}`}
+              onClick={() => setFiltro('CUBIERTA')}
+            >
+              Cubiertas ({cuotasCubiertas})
+            </button>
+            <button
+              className={`filter-btn filter-btn-red ${filtro === 'VENCIDAS' ? 'active' : ''}`}
+              onClick={() => setFiltro('VENCIDAS')}
+            >
+              Vencidas ({cuotasVencidas})
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label className="form-label" style={{ margin: 0, fontSize: '1.0rem' }}>Desde:</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="form-input date-input"
+              style={{ maxWidth: '160px' }}
+            />
+
+              <label className="form-label" style={{ margin: 0, fontSize: '1.0rem' }}>Hasta:</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="form-input date-input"
+              style={{ maxWidth: '160px' }}
+            />
+
+              <button
+                type="button"
+                className="btn btn-sm btn-secondary"
+                onClick={() => { setStartDate(''); setEndDate(''); }}
+                style={{ padding: '0.35rem 0.6rem' }}
+              >
+                Limpiar
+              </button>
+          </div>
         </div>
       </div>
 
