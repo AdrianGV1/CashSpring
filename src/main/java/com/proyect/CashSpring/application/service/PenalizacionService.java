@@ -177,7 +177,7 @@ public class PenalizacionService {
      * Job programado que se ejecuta todos los días a las 00:30 AM
      * Actualiza las penalizaciones de todos los préstamos ACTIVOS y ATRASADOS
      */
-    @Scheduled(cron = "0 30 0 * * *") // Ejecutar a las 00:30 AM cada día
+    @Scheduled(cron = "0 33 17 * * *", zone = "America/Costa_Rica") // Ejecutar a las 00:30 AM hora Costa Rica
     @Transactional
     public void actualizarPenalizacionesDiarias() {
         List<PrestamoEntity> prestamosActivos = prestamoRepo.findAll().stream()
