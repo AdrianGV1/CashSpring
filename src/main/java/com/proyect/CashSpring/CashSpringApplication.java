@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class CashSpringApplication {
 
 	public static void main(String[] args) {
+		
 		SpringApplication.run(CashSpringApplication.class, args);
 	}
 
