@@ -9,12 +9,15 @@ import com.proyect.CashSpring.infrastructure.persistence.entity.CuotaEntity;
 import com.proyect.CashSpring.infrastructure.persistence.entity.PagoEntity;
 import com.proyect.CashSpring.infrastructure.persistence.entity.PrestamoEntity;
 import com.proyect.CashSpring.infrastructure.persistence.jpa.ClienteJpaRepository;
+import com.proyect.CashSpring.infrastructure.persistence.jpa.PagoJpaRepository;
 import com.proyect.CashSpring.infrastructure.persistence.jpa.PrestamoJpaRepository;
 import com.proyect.CashSpring.web.dto.prestamo.PrestamoCreateRequest;
 import com.proyect.CashSpring.web.dto.prestamo.PrestamoResponse;
 import com.proyect.CashSpring.web.dto.prestamo.PrestamoUpdateRequest;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,16 +33,24 @@ public class PrestamoService {
 
     private final ClienteJpaRepository clienteRepo;
     private final PrestamoJpaRepository prestamoRepo;
+    private final PagoJpaRepository pagoRepo;
     private final PenalizacionService penalizacionService;
 
     @PersistenceContext
     private EntityManager em;
 
     public PrestamoService(ClienteJpaRepository clienteRepo, PrestamoJpaRepository prestamoRepo,
-                          PenalizacionService penalizacionService) {
+                          PagoJpaRepository pagoRepo, PenalizacionService penalizacionService) {
         this.clienteRepo = clienteRepo;
         this.prestamoRepo = prestamoRepo;
+        this.pagoRepo = pagoRepo;
         this.penalizacionService = penalizacionService;
+    }
+
+    private boolean isAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }
 
     @Transactional
@@ -57,30 +68,59 @@ public class PrestamoService {
 
         LocalDate fecha = (fechaLiquidacion != null) ? fechaLiquidacion : LocalDate.now();
 
-        // Persistir el pago directamente (evita conflictos con la cascade de la colección)
-        PagoEntity pagoLiquidacion = PagoEntity.builder()
+        // ── ADMIN: liquidar directamente ──────────────────────────────────────────
+        if (isAdmin()) {
+            // Persistir el pago directamente (evita conflictos con la cascade de la colección)
+            PagoEntity pagoLiquidacion = PagoEntity.builder()
+                    .prestamo(prestamo)
+                    .monto(montoLiquidacion)
+                    .fechaPago(fecha)
+                    .notas("Liquidación anticipada del préstamo")
+                    .estadoAprobacion(EstadoAprobacionPago.APROBADO)
+                    .esLiquidacion(true)
+                    .build();
+            em.persist(pagoLiquidacion);
+
+            // Marcar cuotas PENDIENTES como CUBIERTA (sin modificar montoObjetivo)
+            for (CuotaEntity cuota : prestamo.getCuotas()) {
+                if (cuota.getEstado() == EstadoCuota.PENDIENTE) {
+                    cuota.setEstado(EstadoCuota.CUBIERTA);
+                    cuota.setFechaCubierta(fecha);
+                }
+            }
+
+            // Marcar el préstamo como LIQUIDADO y limpiar penalización
+            prestamo.setEstado(EstadoPrestamo.LIQUIDADO);
+            prestamo.setPenalizacionAcumulada(0L);
+
+            // Flush para forzar todos los cambios a BD antes de generar la respuesta
+            em.flush();
+
+            return toResponse(prestamo);
+        }
+
+        // ── SUPERVISOR: crear solicitud EN_ESPERA ─────────────────────────────────
+        // Verificar que no exista ya una solicitud de liquidación pendiente
+        boolean yaTieneSolicitud = prestamo.getPagos().stream()
+                .anyMatch(p -> Boolean.TRUE.equals(p.getEsLiquidacion())
+                        && p.getEstadoAprobacion() == EstadoAprobacionPago.EN_ESPERA);
+        if (yaTieneSolicitud) {
+            throw new IllegalStateException(
+                    "Ya existe una solicitud de liquidación pendiente de aprobación para este préstamo.");
+        }
+
+        PagoEntity solicitudLiquidacion = PagoEntity.builder()
                 .prestamo(prestamo)
                 .monto(montoLiquidacion)
                 .fechaPago(fecha)
-                .notas("Liquidación anticipada del préstamo")
-                .estadoAprobacion(EstadoAprobacionPago.APROBADO)
+                .notas("Solicitud de liquidación del préstamo")
+                .estadoAprobacion(EstadoAprobacionPago.EN_ESPERA)
+                .esLiquidacion(true)
                 .build();
-        em.persist(pagoLiquidacion);
+        pagoRepo.save(solicitudLiquidacion);
 
-        // Marcar cuotas PENDIENTES como CUBIERTA (sin modificar montoObjetivo)
-        for (CuotaEntity cuota : prestamo.getCuotas()) {
-            if (cuota.getEstado() == EstadoCuota.PENDIENTE) {
-                cuota.setEstado(EstadoCuota.CUBIERTA);
-                cuota.setFechaCubierta(fecha);
-            }
-        }
-
-        // Marcar el préstamo como LIQUIDADO
-        prestamo.setEstado(EstadoPrestamo.LIQUIDADO);
-
-        // Flush para forzar todos los cambios a BD antes de generar la respuesta
-        em.flush();
-
+        // Retornar el préstamo sin cambios (estado sigue siendo ACTIVO/ATRASADO)
+        // El frontend detecta esto y muestra "Solicitud enviada"
         return toResponse(prestamo);
     }
 

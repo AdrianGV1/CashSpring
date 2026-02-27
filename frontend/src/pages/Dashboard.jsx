@@ -111,12 +111,17 @@ const Dashboard = () => {
   };
 
   const handleAprobar = async (pagoId) => {
-    if (!confirm('¿Confirmar aprobación de este pago?')) return;
+    const pago = solicitudesPendientes.find(p => p.pagoId === pagoId);
+    const esLiquidacion = pago?.esLiquidacion;
+    const msg = esLiquidacion
+      ? `¿Aprobar la LIQUIDACIÓN del préstamo #${pago?.prestamoId}?\nEsto marcará el préstamo como LIQUIDADO y cubrirá todas las cuotas pendientes.`
+      : '¿Confirmar aprobación de este pago?';
+    if (!confirm(msg)) return;
 
     try {
       setProcesando(pagoId);
       await pagoApi.aprobar(pagoId);
-      setAlert({ type: 'success', message: 'Pago aprobado correctamente' });
+      setAlert({ type: 'success', message: esLiquidacion ? 'Liquidación aprobada y ejecutada correctamente' : 'Pago aprobado correctamente' });
       await loadData(true);
     } catch (error) {
       console.error('Error al aprobar pago:', error);
@@ -326,7 +331,14 @@ const Dashboard = () => {
                         <td><span className="badge badge-date">{formatDate(pago.fechaPago)}</span></td>
                         <td className="font-medium">{pago.clienteNombre}</td>
                         <td><span className="badge badge-secondary">{pago.clienteCedula}</span></td>
-                        <td><span className="badge badge-secondary">#{pago.prestamoId}</span></td>
+                        <td>
+                          <span className="badge badge-secondary">#{pago.prestamoId}</span>
+                          {pago.esLiquidacion && (
+                            <span style={{ marginLeft: '0.4rem', backgroundColor: '#dc3545', color: '#fff', padding: '2px 7px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '700' }}>
+                              LIQUIDACIÓN
+                            </span>
+                          )}
+                        </td>
                         <td><span className="text-success font-bold">{formatMoney(pago.monto)}</span></td>
                         <td>
                           <div style={{ display: 'flex', gap: '0.5rem' }}>

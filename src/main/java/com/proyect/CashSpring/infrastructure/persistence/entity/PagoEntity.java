@@ -38,6 +38,10 @@ public class PagoEntity {
     @Builder.Default
     private EstadoAprobacionPago estadoAprobacion = EstadoAprobacionPago.APROBADO;
 
+    @Builder.Default
+    @Column(name="es_liquidacion", nullable = false)
+    private Boolean esLiquidacion = false;
+
     @CreationTimestamp
     @Column(name="created_at", nullable = false, updatable = false)
     private Instant createdAt;

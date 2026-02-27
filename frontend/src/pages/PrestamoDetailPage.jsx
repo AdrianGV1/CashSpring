@@ -196,10 +196,14 @@ const PrestamoDetailPage = () => {
     try {
       setLiquidarLoading(true);
       setLiquidarError(null);
-      await prestamoApi.liquidar(id, fechaLiquidacion);
+      const response = await prestamoApi.liquidar(id, fechaLiquidacion);
       await loadData();
       setShowLiquidarForm(false);
-      alert('✅ Préstamo liquidado exitosamente.');
+      if (response.estado === 'LIQUIDADO') {
+        alert('✅ Préstamo liquidado exitosamente.');
+      } else {
+        alert('⏳ Solicitud de liquidación enviada. El administrador debe aprobarla para que se haga efectiva.');
+      }
     } catch (err) {
       const mensaje = err?.response?.data?.message || err?.message;
       setLiquidarError(mensaje || 'Error al liquidar el préstamo. Intenta de nuevo.');

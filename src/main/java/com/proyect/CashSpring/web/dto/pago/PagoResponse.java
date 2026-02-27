@@ -15,6 +15,7 @@ public class PagoResponse {
     private Long monto; // CRC
     private String notas;
     private EstadoAprobacionPago estadoAprobacion;
+    private Boolean esLiquidacion;
 
     public Long getPagoId() { return pagoId; }
     public void setPagoId(Long pagoId) { this.pagoId = pagoId; }
@@ -39,4 +40,7 @@ public class PagoResponse {
 
     public EstadoAprobacionPago getEstadoAprobacion() { return estadoAprobacion; }
     public void setEstadoAprobacion(EstadoAprobacionPago estadoAprobacion) { this.estadoAprobacion = estadoAprobacion; }
+
+    public Boolean getEsLiquidacion() { return esLiquidacion; }
+    public void setEsLiquidacion(Boolean esLiquidacion) { this.esLiquidacion = esLiquidacion; }
 }

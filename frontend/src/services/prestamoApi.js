@@ -2,13 +2,22 @@ import axios from 'axios';
 
 const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/prestamos`;
 
-const axiosInstance = axios.create({
-  baseURL: API_URL,
-  auth: {
+const getAuthCredentials = () => {
+  const username = localStorage.getItem('username');
+  const password = localStorage.getItem('password');
+  if (username && password) return { username, password };
+  return {
     username: import.meta.env.VITE_API_USERNAME || 'admin',
     password: import.meta.env.VITE_API_PASSWORD || 'admin123'
-  }
-});
+  };
+};
+
+const axiosInstance = axios.create({ baseURL: API_URL });
+
+axiosInstance.interceptors.request.use(
+  config => { config.auth = getAuthCredentials(); return config; },
+  error => Promise.reject(error)
+);
 
 export const prestamoApi = {
   getAll: async () => {

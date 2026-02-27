@@ -107,13 +107,37 @@ public class PagoService {
             throw new IllegalArgumentException("El pago ya fue procesado");
         }
 
-        // Antes de aprobarlo, validar nuevamente el límite considerando que este
-        // pago ya está registrado como EN_ESPERA en el préstamo.
         PrestamoEntity prestamo = pago.getPrestamo();
-        validarLimitePago(prestamo, 0L);
 
         // Cambiar estado a APROBADO
         pago.setEstadoAprobacion(EstadoAprobacionPago.APROBADO);
+
+        // ── SI ES SOLICITUD DE LIQUIDACIÓN: ejecutar liquidación completa ─────────────
+        if (Boolean.TRUE.equals(pago.getEsLiquidacion())) {
+            // Marcar todas las cuotas PENDIENTES como CUBIERTA
+            for (CuotaEntity cuota : prestamo.getCuotas()) {
+                if (cuota.getEstado() == EstadoCuota.PENDIENTE) {
+                    cuota.setEstado(EstadoCuota.CUBIERTA);
+                    cuota.setFechaCubierta(pago.getFechaPago());
+                }
+            }
+            // Limpiar controles de penalización y resetear a 0
+            prestamo.setPenalizacionAcumulada(0L);
+            prestamo.setPenalizacionPausada(false);
+            prestamo.setFechaPausaPenalizacion(null);
+            prestamo.setPenalizacionNegociada(false);
+            prestamo.setMontoNegociado(null);
+            prestamo.setFechaNegociacion(null);
+            // Marcar préstamo como LIQUIDADO
+            prestamo.setEstado(EstadoPrestamo.LIQUIDADO);
+            prestamoRepo.save(prestamo);
+            return toResponse(pagoRepo.save(pago));
+        }
+
+        // ── PAGO NORMAL: validar límite y procesar cuotas ──────────────────────────
+        // Antes de aprobarlo, validar nuevamente el límite considerando que este
+        // pago ya está registrado como EN_ESPERA en el préstamo.
+        validarLimitePago(prestamo, 0L);
 
         // Procesar las cuotas del préstamo
         procesarCuotasConPago(prestamo, pago.getMonto(), pago.getFechaPago());
@@ -420,6 +444,7 @@ public class PagoService {
         r.setMonto(p.getMonto());
         r.setNotas(p.getNotas());
         r.setEstadoAprobacion(p.getEstadoAprobacion());
+        r.setEsLiquidacion(Boolean.TRUE.equals(p.getEsLiquidacion()));
         return r;
     }
 }
