@@ -69,6 +69,10 @@ public class PagoService {
 
         LocalDate fechaPago = req.getFechaPago() != null ? req.getFechaPago() : LocalDate.now();
 
+        // Validar que el nuevo pago (aunque quede EN_ESPERA) no haga que
+        // el total de pagos registrados supere el total permitido del préstamo.
+        validarLimitePago(prestamo, req.getMonto());
+
         // Determinar el estado de aprobación según el rol del usuario
         EstadoAprobacionPago estadoAprobacion = isAdmin() 
                 ? EstadoAprobacionPago.APROBADO 
@@ -103,11 +107,15 @@ public class PagoService {
             throw new IllegalArgumentException("El pago ya fue procesado");
         }
 
+        // Antes de aprobarlo, validar nuevamente el límite considerando que este
+        // pago ya está registrado como EN_ESPERA en el préstamo.
+        PrestamoEntity prestamo = pago.getPrestamo();
+        validarLimitePago(prestamo, 0L);
+
         // Cambiar estado a APROBADO
         pago.setEstadoAprobacion(EstadoAprobacionPago.APROBADO);
 
         // Procesar las cuotas del préstamo
-        PrestamoEntity prestamo = pago.getPrestamo();
         procesarCuotasConPago(prestamo, pago.getMonto(), pago.getFechaPago());
         prestamoRepo.save(prestamo);
 
@@ -370,6 +378,36 @@ public class PagoService {
 
         PagoEntity guardado = pagoRepo.save(pago);
         return toResponse(guardado);
+    }
+
+    /**
+     * Valida que al registrar un nuevo pago (o aprobar uno en espera) el total
+     * de pagos asociados al préstamo, incluyendo los EN_ESPERA, no exceda el
+     * límite máximo permitido: totalObjetivo (+ montoExtendido) + penalización actual.
+     *
+     * newMonto representa el monto adicional que se quiere registrar en este momento.
+     * En el caso de aprobar un pago en espera se pasa 0, porque ese monto ya está
+     * incluido dentro de los pagos del préstamo.
+     */
+    private void validarLimitePago(PrestamoEntity prestamo, Long newMonto) {
+        long totalObjetivo = prestamo.getTotalObjetivo() != null ? prestamo.getTotalObjetivo() : 0L;
+        long montoExtendido = prestamo.getMontoExtendido() != null ? prestamo.getMontoExtendido() : 0L;
+        long penalizacionActual = prestamo.getPenalizacionAcumulada() != null ? prestamo.getPenalizacionAcumulada() : 0L;
+
+        long maximoPermitido = totalObjetivo + montoExtendido + penalizacionActual;
+
+        long totalPagosRegistrados = prestamo.getPagos().stream()
+                .mapToLong(PagoEntity::getMonto)
+                .sum();
+
+        long totalConNuevo = totalPagosRegistrados + (newMonto != null ? newMonto : 0L);
+
+        if (totalConNuevo > maximoPermitido) {
+            long disponible = Math.max(0L, maximoPermitido - totalPagosRegistrados);
+            throw new IllegalArgumentException(
+                    "El monto del pago excede el máximo permitido para este préstamo. " +
+                    "Disponible para pagar (considerando solicitudes en espera): " + disponible);
+        }
     }
 
     private PagoResponse toResponse(PagoEntity p) {
