@@ -63,25 +63,34 @@ public class PrestamoService {
                     "Solo se pueden liquidar préstamos en estado ACTIVO o ATRASADO. Estado actual: " + prestamo.getEstado());
         }
 
-        // Monto de liquidación = montoPrestado + 20% de interés (usa el interesBase del préstamo)
-        long montoLiquidacion = calcularTotalMontoMasInteres(prestamo.getMontoPrestado(), prestamo.getInteresBase());
+        // Monto base de liquidación = montoPrestado + 20% de interés
+        long montoBase = calcularTotalMontoMasInteres(prestamo.getMontoPrestado(), prestamo.getInteresBase());
+
+        // Penalización vigente (normal, pausada o negociada → siempre en penalizacionAcumulada)
+        long penalizacion = prestamo.getPenalizacionAcumulada() != null ? prestamo.getPenalizacionAcumulada() : 0L;
+
+        // Total a cobrar = liquidación + penalización
+        long montoTotal = montoBase + penalizacion;
 
         LocalDate fecha = (fechaLiquidacion != null) ? fechaLiquidacion : LocalDate.now();
 
+        // Nota descriptiva con desglose
+        String notaBase = "Liquidación anticipada del préstamo (capital + 20% interés: ₡" + montoBase
+                + (penalizacion > 0 ? " + penalización: ₡" + penalizacion : "") + ")";
+
         // ── ADMIN: liquidar directamente ──────────────────────────────────────────
         if (isAdmin()) {
-            // Persistir el pago directamente (evita conflictos con la cascade de la colección)
             PagoEntity pagoLiquidacion = PagoEntity.builder()
                     .prestamo(prestamo)
-                    .monto(montoLiquidacion)
+                    .monto(montoTotal)
                     .fechaPago(fecha)
-                    .notas("Liquidación anticipada del préstamo")
+                    .notas(notaBase)
                     .estadoAprobacion(EstadoAprobacionPago.APROBADO)
                     .esLiquidacion(true)
                     .build();
             em.persist(pagoLiquidacion);
 
-            // Marcar cuotas PENDIENTES como CUBIERTA (sin modificar montoObjetivo)
+            // Marcar cuotas PENDIENTES como CUBIERTA
             for (CuotaEntity cuota : prestamo.getCuotas()) {
                 if (cuota.getEstado() == EstadoCuota.PENDIENTE) {
                     cuota.setEstado(EstadoCuota.CUBIERTA);
@@ -89,18 +98,20 @@ public class PrestamoService {
                 }
             }
 
-            // Marcar el préstamo como LIQUIDADO y limpiar penalización
+            // Marcar el préstamo como LIQUIDADO y limpiar penalización y controles
             prestamo.setEstado(EstadoPrestamo.LIQUIDADO);
             prestamo.setPenalizacionAcumulada(0L);
+            prestamo.setPenalizacionPausada(false);
+            prestamo.setFechaPausaPenalizacion(null);
+            prestamo.setPenalizacionNegociada(false);
+            prestamo.setMontoNegociado(null);
+            prestamo.setFechaNegociacion(null);
 
-            // Flush para forzar todos los cambios a BD antes de generar la respuesta
             em.flush();
-
             return toResponse(prestamo);
         }
 
         // ── SUPERVISOR: crear solicitud EN_ESPERA ─────────────────────────────────
-        // Verificar que no exista ya una solicitud de liquidación pendiente
         boolean yaTieneSolicitud = prestamo.getPagos().stream()
                 .anyMatch(p -> Boolean.TRUE.equals(p.getEsLiquidacion())
                         && p.getEstadoAprobacion() == EstadoAprobacionPago.EN_ESPERA);
@@ -111,16 +122,14 @@ public class PrestamoService {
 
         PagoEntity solicitudLiquidacion = PagoEntity.builder()
                 .prestamo(prestamo)
-                .monto(montoLiquidacion)
+                .monto(montoTotal)
                 .fechaPago(fecha)
-                .notas("Solicitud de liquidación del préstamo")
+                .notas("Solicitud: " + notaBase)
                 .estadoAprobacion(EstadoAprobacionPago.EN_ESPERA)
                 .esLiquidacion(true)
                 .build();
         pagoRepo.save(solicitudLiquidacion);
 
-        // Retornar el préstamo sin cambios (estado sigue siendo ACTIVO/ATRASADO)
-        // El frontend detecta esto y muestra "Solicitud enviada"
         return toResponse(prestamo);
     }
 

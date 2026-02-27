@@ -186,11 +186,24 @@ const PrestamoDetailPage = () => {
   const handleLiquidarPrestamo = async (e) => {
     e.preventDefault();
     const montoLiq = prestamo.montoLiquidacion || 0;
+    const penalizacion = prestamo.penalizacionAcumulada || 0;
+    const montoTotal = montoLiq + penalizacion;
+
+    let desglose = `Capital + 20% interés: ${formatMoney(montoLiq)}`;
+    if (penalizacion > 0) {
+      const tipoPen = prestamo.penalizacionNegociada
+        ? 'Penalización (negociada)'
+        : prestamo.penalizacionPausada
+        ? 'Penalización (pausada)'
+        : 'Penalización por atraso';
+      desglose += `\n${tipoPen}: ${formatMoney(penalizacion)}`;
+      desglose += `\nTOTAL: ${formatMoney(montoTotal)}`;
+    }
+
     const confirmar = window.confirm(
       `¿Confirmar la liquidación del préstamo?\n\n` +
-      `Monto a pagar: ₡${montoLiq.toLocaleString('es-CR')}\n` +
-      `(${formatMoney(prestamo.montoPrestado)} de capital + 20% de interés)\n\n` +
-      `Las cuotas pendientes quedarán en ₡0 y el préstamo será marcado como LIQUIDADO.`
+      `${desglose}\n\n` +
+      `Las cuotas pendientes quedarán cubiertas y el préstamo será marcado como LIQUIDADO.`
     );
     if (!confirmar) return;
     try {
@@ -466,6 +479,9 @@ const PrestamoDetailPage = () => {
   const progresoCuotas = calcularProgresoCuotas();
   const progresoPenalizacion = calcularProgresoPenalizacion();
   const estaLiquidado = prestamo.estado === 'LIQUIDADO';
+  const montoLiqBase = prestamo.montoLiquidacion || 0;
+  const penAcumuladaLiq = prestamo.penalizacionAcumulada || 0;
+  const montoLiqTotal = montoLiqBase + penAcumuladaLiq;
   const restanteReal = calcularRestante();
   // Un préstamo está completo solo si el restante es exactamente ₡0
   const estaCompleto = estaLiquidado || restanteReal === 0;
@@ -696,13 +712,27 @@ const PrestamoDetailPage = () => {
               <div className="info-item">
                 <span className="label">Interés de liquidación (20%):</span>
                 <span className="value" style={{ color: '#dc3545' }}>
-                  {formatMoney((prestamo.montoLiquidacion || 0) - prestamo.montoPrestado)}
+                  {formatMoney(montoLiqBase - prestamo.montoPrestado)}
                 </span>
               </div>
+              {penAcumuladaLiq > 0 && (
+                <div className="info-item">
+                  <span className="label">
+                    {prestamo.penalizacionNegociada
+                      ? '⚠️ Penalización (negociada):'
+                      : prestamo.penalizacionPausada
+                      ? '⏸️ Penalización (pausada):'
+                      : '⚠️ Penalización por atraso:'}
+                  </span>
+                  <span className="value" style={{ color: '#e67e22', fontWeight: 600 }}>
+                    {formatMoney(penAcumuladaLiq)}
+                  </span>
+                </div>
+              )}
               <div className="info-item">
-                <span className="label">💰 Monto a pagar para liquidar:</span>
+                <span className="label">💰 Total a pagar para liquidar:</span>
                 <span className="value" style={{ color: '#dc3545', fontWeight: 700, fontSize: '1.1rem' }}>
-                  {formatMoney(prestamo.montoLiquidacion || 0)}
+                  {formatMoney(montoLiqTotal)}
                 </span>
               </div>
               <div className="info-item">
@@ -757,7 +787,7 @@ const PrestamoDetailPage = () => {
                 >
                   {liquidarLoading
                     ? 'Procesando...'
-                    : `Confirmar Liquidación — ${formatMoney(prestamo.montoLiquidacion || 0)}`}
+                    : `Confirmar Liquidación — ${formatMoney(montoLiqTotal)}`}
                 </button>
               </div>
             </form>
