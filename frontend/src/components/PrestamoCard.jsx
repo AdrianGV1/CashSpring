@@ -13,7 +13,9 @@ const PrestamoCard = ({ prestamo, clienteNombre }) => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('es-CR');
+    if (!dateString) return '';
+    const [y, m, d] = dateString.split('T')[0].split('-');
+    return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('es-CR');
   };
 
   const getEstadoBadge = (estado) => {

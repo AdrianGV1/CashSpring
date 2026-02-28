@@ -57,8 +57,11 @@ const CuotasPage = () => {
     return <span>{formatMoney(cuota.montoObjetivo)}</span>;
   };
 
-  const formatDate = (dateString) =>
-    new Date(dateString).toLocaleDateString('es-CR');
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const [y, m, d] = dateString.split('T')[0].split('-');
+    return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('es-CR');
+  };
 
   const getEstadoBadge = (estado) => {
     const badges = {

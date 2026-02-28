@@ -46,7 +46,7 @@ const INITIAL_FORM = {
   notas: '',
   montoPrestado: '',
   interesBase: 0.20,
-  fechaInicio: new Date().toISOString().split('T')[0],
+  fechaInicio: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' }),
   tipoAcuerdo: 'PENALIZACION_POR_DIA',
   cantidadQuincenas: '',
   montoCuota: '',
@@ -68,7 +68,7 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
         ...INITIAL_FORM,
         ...initialData,
         interesBase: initialData.interesBase ?? 0.20,
-        fechaInicio: initialData.fechaInicio || new Date().toISOString().split('T')[0],
+        fechaInicio: initialData.fechaInicio || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' }),
         cantidadQuincenas: initialData.cantidadQuincenas ?? '',
         montoCuota: initialData.montoCuota ?? '',
       });
@@ -558,7 +558,7 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
               name="fechaInicio"
               value={formData.fechaInicio}
               onChange={handleChange}
-              min={new Date().toISOString().split('T')[0]}
+              min={new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' })}
               style={inputStyle('fechaInicio')}
             />
             {errors.fechaInicio && <small style={{ color: '#dc3545' }}>{errors.fechaInicio}</small>}

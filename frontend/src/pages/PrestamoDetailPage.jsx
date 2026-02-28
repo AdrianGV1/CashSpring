@@ -27,7 +27,7 @@ const PrestamoDetailPage = () => {
   const [showExtensionWarning, setShowExtensionWarning] = useState(false);
   const [pagoData, setPagoData] = useState({
     monto: '',
-    fechaPago: new Date().toISOString().split('T')[0],
+    fechaPago: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' }),
     notas: ''
   });
   const [pagoError, setPagoError] = useState(null);
@@ -35,7 +35,7 @@ const PrestamoDetailPage = () => {
   const [showLiquidarForm, setShowLiquidarForm] = useState(false);
   const [liquidarLoading, setLiquidarLoading] = useState(false);
   const [liquidarError, setLiquidarError] = useState(null);
-  const [fechaLiquidacion, setFechaLiquidacion] = useState(new Date().toISOString().split('T')[0]);
+  const [fechaLiquidacion, setFechaLiquidacion] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' }));
   const [exportingPdf, setExportingPdf] = useState(false);
 
   // Estados para control de penalización
@@ -121,7 +121,7 @@ const PrestamoDetailPage = () => {
       // Limpiar formulario
       setPagoData({
         monto: '',
-        fechaPago: new Date().toISOString().split('T')[0],
+        fechaPago: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' }),
         notas: ''
       });
       setPagoError(null);
@@ -376,7 +376,9 @@ const PrestamoDetailPage = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('es-CR');
+    if (!dateString) return '';
+    const [y, m, d] = dateString.split('T')[0].split('-');
+    return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('es-CR');
   };
 
   const getTipoAcuerdoText = (tipo) => {
@@ -759,7 +761,7 @@ const PrestamoDetailPage = () => {
                   type="date"
                   value={fechaLiquidacion}
                   onChange={(e) => setFechaLiquidacion(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' })}
                   required
                 />
               </div>
@@ -1018,7 +1020,7 @@ const PrestamoDetailPage = () => {
                     type="date"
                     value={pagoData.fechaPago}
                     onChange={(e) => setPagoData({...pagoData, fechaPago: e.target.value})}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' })}
                     required
                   />
                 </div>

@@ -8,6 +8,7 @@ import PrestamoDetailPage from './pages/PrestamoDetailPage'
 import CuotasPage from './pages/CuotasPage'
 import LoginPage from './pages/LoginPage'
 import { ProtectedRoute, logout, getUsername } from './components/ProtectedRoute'
+import RelojFecha from './components/RelojFecha'
 
 function Navigation() {
   const location = useLocation();
@@ -47,6 +48,8 @@ function Navigation() {
 
         <div className="nav-actions">
           <div className="user-menu">
+            <RelojFecha />
+            <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 0.5rem' }}>|</span>
             <span className="username">👤 {getUsername()}</span>
             <button onClick={handleLogout} className="btn btn-secondary btn-sm">
               🚪 Salir

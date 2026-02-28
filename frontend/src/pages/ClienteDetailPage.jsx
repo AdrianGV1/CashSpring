@@ -443,7 +443,7 @@ export default function ClienteDetailPage() {
                         )}
                       </td>
                       <td>
-                        {new Date(prestamo.fechaInicio).toLocaleDateString('es-ES')}
+                        {(() => { const [y,m,d] = prestamo.fechaInicio.split('T')[0].split('-'); return new Date(Number(y),Number(m)-1,Number(d)).toLocaleDateString('es-CR'); })()}
                       </td>
                       <td>
                         <strong>₡{prestamo.montoPrestado?.toLocaleString()}</strong>
@@ -456,13 +456,13 @@ export default function ClienteDetailPage() {
                       <td>
                         {prestamo.estado === 'PAGADO' ? (
                           <span style={{ color: '#6b7280' }}>
-                            {ultimaFecha ? new Date(ultimaFecha).toLocaleDateString('es-ES') : '—'}
+                            {ultimaFecha ? (() => { const [y,m,d] = ultimaFecha.split('T')[0].split('-'); return new Date(Number(y),Number(m)-1,Number(d)).toLocaleDateString('es-CR'); })() : '—'}
                             <br />
                             <span style={{ fontSize: '0.75rem' }}>Último pago</span>
                           </span>
                         ) : (
                           <span>
-                            {proximaFecha ? new Date(proximaFecha).toLocaleDateString('es-ES') : '—'}
+                            {proximaFecha ? (() => { const [y,m,d] = proximaFecha.split('T')[0].split('-'); return new Date(Number(y),Number(m)-1,Number(d)).toLocaleDateString('es-CR'); })() : '—'}
                             <br />
                             <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Próxima cuota</span>
                           </span>

@@ -60,7 +60,9 @@ const PagosPage = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('es-CR');
+    if (!dateString) return '';
+    const [y, m, d] = dateString.split('T')[0].split('-');
+    return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('es-CR');
   };
 
   // Ordenar pagos por fecha (más recientes primero)
