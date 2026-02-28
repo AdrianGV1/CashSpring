@@ -20,6 +20,9 @@ public record ClienteUpdateRequest(
         @Size(max = 500, message = "ubicacion máximo 500 caracteres")
         String ubicacion,
 
+        @Size(max = 500, message = "ubicacionExtra máximo 500 caracteres")
+        String ubicacionExtra,
+
         String notas,
 
         Boolean activo

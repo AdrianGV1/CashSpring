@@ -22,6 +22,8 @@ public class PrestamoCreateRequest {
 
     private String ubicacion;
 
+    private String ubicacionExtra;
+
     private String notas;
 
     private BigDecimal interesBase;
@@ -56,6 +58,9 @@ public class PrestamoCreateRequest {
 
     public String getUbicacion() { return ubicacion; }
     public void setUbicacion(String ubicacion) { this.ubicacion = ubicacion; }
+
+    public String getUbicacionExtra() { return ubicacionExtra; }
+    public void setUbicacionExtra(String ubicacionExtra) { this.ubicacionExtra = ubicacionExtra; }
 
     public String getNotas() { return notas; }
     public void setNotas(String notas) { this.notas = notas; }

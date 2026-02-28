@@ -13,7 +13,6 @@ import java.util.List;
 @Table(
         name = "clientes",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_clientes_telefono", columnNames = {"telefono"}),
                 @UniqueConstraint(name = "uk_clientes_cedula", columnNames = {"cedula"})
         }
 )
@@ -37,6 +36,9 @@ public class ClienteEntity {
 
     @Column(name="ubicacion", length = 500)
     private String ubicacion;
+
+    @Column(name="ubicacion_extra", length = 500)
+    private String ubicacionExtra;
 
     @Column(name="notas", columnDefinition = "text")
     private String notas;

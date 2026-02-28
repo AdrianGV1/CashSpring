@@ -362,17 +362,13 @@ public class PrestamoService {
                 throw new IllegalArgumentException("Ya existe un cliente registrado con esa cédula.");
             }
 
-            // Verificar que el teléfono no esté registrado
-            if (clienteRepo.findByTelefono(req.getTelefono().trim()).isPresent()) {
-                throw new IllegalArgumentException("Ya existe un cliente registrado con ese teléfono.");
-            }
-
             // Crear el cliente nuevo
             cliente = ClienteEntity.builder()
                     .nombre(req.getNombre().trim())
                     .telefono(req.getTelefono().trim())
                     .cedula(req.getCedula().trim())
                     .ubicacion(req.getUbicacion().trim())
+                    .ubicacionExtra(req.getUbicacionExtra() != null && !req.getUbicacionExtra().isBlank() ? req.getUbicacionExtra().trim() : null)
                     .notas(req.getNotas())
                     .activo(true)
                     .build();

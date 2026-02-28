@@ -24,6 +24,7 @@ export default function ClienteDetailPage() {
     telefono: '',
     cedula: '',
     ubicacion: '',
+    ubicacionExtra: '',
     notas: ''
   });
 
@@ -42,6 +43,7 @@ export default function ClienteDetailPage() {
         telefono: response.telefono || '',
         cedula: response.cedula || '',
         ubicacion: response.ubicacion || '',
+        ubicacionExtra: response.ubicacionExtra || '',
         notas: response.notas || ''
       });
     } catch (err) {
@@ -76,6 +78,7 @@ export default function ClienteDetailPage() {
       telefono: cliente.telefono || '',
       cedula: cliente.cedula || '',
       ubicacion: cliente.ubicacion || '',
+      ubicacionExtra: cliente.ubicacionExtra || '',
       notas: cliente.notas || ''
     });
   };
@@ -176,12 +179,12 @@ export default function ClienteDetailPage() {
 
       <div className='card'>
         {/* Header with Edit button */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #e5e7eb' }}>
+        <div className='cliente-header'>
           <h2 className='text-xl font-bold text-gray-800'>
             {isEditing ? '✏️ Editando Cliente' : cliente.nombre}
           </h2>
           {!isEditing && (
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div className='cliente-header-actions'>
               <button 
                 onClick={handleExportPdf} 
                 className='btn btn-secondary'
@@ -237,7 +240,7 @@ export default function ClienteDetailPage() {
 
               {cliente.ubicacion && (
                 <div>
-                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.75rem' }}>Ubicación</p>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.75rem' }}>Ubicación Casa</p>
                   {(cliente.googleMapsUrl || cliente.appleMapsUrl) ? (
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                       {cliente.googleMapsUrl && (
@@ -264,6 +267,44 @@ export default function ClienteDetailPage() {
                   ) : (
                     <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                       {cliente.ubicacion}
+                      <br />
+                      <span style={{ fontSize: '0.75rem' }}>
+                        (No se pudieron generar enlaces de navegación)
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {cliente.ubicacionExtra && (
+                <div>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.75rem' }}>Ubicación Trabajo</p>
+                  {(cliente.googleMapsUrlExtra || cliente.appleMapsUrlExtra) ? (
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {cliente.googleMapsUrlExtra && (
+                        <a 
+                          href={cliente.googleMapsUrlExtra} 
+                          target='_blank' 
+                          rel='noopener noreferrer'
+                          className='btn btn-success'
+                        >
+                          🗺️ Google Maps
+                        </a>
+                      )}
+                      {cliente.appleMapsUrlExtra && (
+                        <a 
+                          href={cliente.appleMapsUrlExtra} 
+                          target='_blank' 
+                          rel='noopener noreferrer'
+                          className='btn btn-primary'
+                        >
+                          🍎 Apple Maps
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
+                      {cliente.ubicacionExtra}
                       <br />
                       <span style={{ fontSize: '0.75rem' }}>
                         (No se pudieron generar enlaces de navegación)
@@ -344,7 +385,7 @@ export default function ClienteDetailPage() {
 
               <div>
                 <label className='form-label'>
-                  Ubicación (URL o coordenadas)
+                  Ubicación Casa (URL o coordenadas)
                 </label>
                 <input
                   type='text'
@@ -356,6 +397,21 @@ export default function ClienteDetailPage() {
                 />
                 <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.5rem' }}>
                   Puedes pegar un enlace de Google Maps o coordenadas en formato decimal (lat,lng)
+                </p>
+              </div>
+
+              <div>
+                <label className='form-label'>Ubicación Trabajo (URL o coordenadas)</label>
+                <input
+                  type='text'
+                  name='ubicacionExtra'
+                  value={formData.ubicacionExtra}
+                  onChange={handleInputChange}
+                  className='form-input'
+                  placeholder='Ej: https://maps.app.goo.gl/... o 9.322,-83.699 (opcional)'
+                />
+                <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                  Opcional. Puedes pegar un enlace de Google Maps o coordenadas en formato decimal (lat,lng)
                 </p>
               </div>
 

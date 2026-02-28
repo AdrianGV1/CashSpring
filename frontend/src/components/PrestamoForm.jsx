@@ -43,6 +43,7 @@ const INITIAL_FORM = {
   nombre: '',
   telefono: '',
   ubicacion: '',
+  ubicacionExtra: '',
   notas: '',
   montoPrestado: '',
   interesBase: 0.20,
@@ -101,6 +102,7 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
       nombre: '',
       telefono: '',
       ubicacion: '',
+      ubicacionExtra: '',
       notas: '',
     });
     setErrors({});
@@ -116,6 +118,7 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
         nombre: '',
         telefono: '',
         ubicacion: '',
+        ubicacionExtra: '',
         notas: '',
       });
       return;
@@ -130,6 +133,7 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
         nombre: cliente.nombre || '',
         telefono: cliente.telefono || '',
         ubicacion: cliente.ubicacion || '',
+        ubicacionExtra: cliente.ubicacionExtra || '',
         notas: cliente.notas || '',
       });
     }
@@ -249,6 +253,7 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
       dataToSend.nombre = formData.nombre.trim();
       dataToSend.telefono = formData.telefono.trim();
       dataToSend.ubicacion = formData.ubicacion.trim();
+      dataToSend.ubicacionExtra = formData.ubicacionExtra.trim() || null;
       dataToSend.notas = formData.notas.trim() || null;
     }
 
@@ -269,44 +274,53 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
 
       {/* SECCION: DATOS DEL CLIENTE */}
       <div style={{
-        background: '#f0f7ff',
-        border: '1px solid #b8d4f5',
-        borderRadius: '10px',
-        padding: '1.25rem',
+        background: '#ffffff',
+        border: '1px solid #e5e7eb',
+        borderRadius: '8px',
+        padding: '1.5rem',
         marginBottom: '1.5rem',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
       }}>
-        <h3 style={{ margin: '0 0 1rem 0', color: '#1565c0', fontSize: '1rem', fontWeight: 700 }}>
+        <h3 style={{ 
+          margin: '0 0 1.5rem 0', 
+          color: '#374151', 
+          fontSize: '1.125rem', 
+          fontWeight: 600,
+          borderBottom: '1px solid #e5e7eb',
+          paddingBottom: '0.75rem'
+        }}>
           Datos del Cliente
         </h3>
 
         {/* Selector de Modo de Cliente */}
         <div style={{ 
           marginBottom: '1.5rem', 
-          padding: '0.75rem', 
-          background: '#fff', 
-          borderRadius: '8px',
-          border: '2px solid #e3f2fd'
+          padding: '1rem', 
+          background: '#f9fafb', 
+          borderRadius: '6px',
+          border: '1px solid #e5e7eb'
         }}>
           <label style={{ 
             display: 'block', 
-            marginBottom: '0.5rem', 
-            fontWeight: 600, 
-            color: '#1976d2',
-            fontSize: '0.9rem'
+            marginBottom: '0.75rem', 
+            fontWeight: 500, 
+            color: '#374151',
+            fontSize: '0.875rem'
           }}>
             Tipo de Cliente
           </label>
-          <div style={{ display: 'flex', gap: '1rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
             <label style={{ 
               display: 'flex', 
               alignItems: 'center', 
               cursor: 'pointer',
               padding: '0.5rem 1rem',
-              background: clienteMode === 'nuevo' ? '#1976d2' : '#f5f5f5',
-              color: clienteMode === 'nuevo' ? '#fff' : '#555',
+              background: clienteMode === 'nuevo' ? '#3b82f6' : '#ffffff',
+              color: clienteMode === 'nuevo' ? '#ffffff' : '#6b7280',
               borderRadius: '6px',
-              fontWeight: clienteMode === 'nuevo' ? 600 : 400,
-              transition: 'all 0.2s'
+              fontWeight: 500,
+              border: '1px solid #d1d5db',
+              transition: 'all 0.2s ease'
             }}>
               <input
                 type="radio"
@@ -314,7 +328,7 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
                 value="nuevo"
                 checked={clienteMode === 'nuevo'}
                 onChange={() => handleClienteModeChange('nuevo')}
-                style={{ marginRight: '0.5rem' }}
+                style={{ display: 'none' }}
               />
               Nuevo Cliente
             </label>
@@ -323,11 +337,12 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
               alignItems: 'center', 
               cursor: 'pointer',
               padding: '0.5rem 1rem',
-              background: clienteMode === 'existente' ? '#1976d2' : '#f5f5f5',
-              color: clienteMode === 'existente' ? '#fff' : '#555',
+              background: clienteMode === 'existente' ? '#3b82f6' : '#ffffff',
+              color: clienteMode === 'existente' ? '#ffffff' : '#6b7280',
               borderRadius: '6px',
-              fontWeight: clienteMode === 'existente' ? 600 : 400,
-              transition: 'all 0.2s'
+              fontWeight: 500,
+              border: '1px solid #d1d5db',
+              transition: 'all 0.2s ease'
             }}>
               <input
                 type="radio"
@@ -335,7 +350,7 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
                 value="existente"
                 checked={clienteMode === 'existente'}
                 onChange={() => handleClienteModeChange('existente')}
-                style={{ marginRight: '0.5rem' }}
+                style={{ display: 'none' }}
               />
               Cliente Existente
             </label>
@@ -345,18 +360,35 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
         {/* Selector de Cliente Existente */}
         {clienteMode === 'existente' && (
           <div className="form-group">
-            <label>Seleccionar Cliente *</label>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontWeight: 500,
+              color: '#374151',
+              fontSize: '0.875rem'
+            }}>
+              Seleccionar Cliente *
+            </label>
             {cargandoClientes ? (
-              <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+              <div style={{ 
+                padding: '1rem', 
+                textAlign: 'center', 
+                color: '#6b7280',
+                fontSize: '0.875rem',
+                background: '#f9fafb',
+                borderRadius: '6px',
+                border: '1px solid #e5e7eb'
+              }}>
                 Cargando clientes disponibles...
               </div>
             ) : clientesDisponibles.length === 0 ? (
               <div style={{ 
                 padding: '1rem', 
-                background: '#fff3cd', 
-                border: '1px solid #ffc107',
+                background: '#fef3c7',
+                border: '1px solid #f59e0b',
                 borderRadius: '6px',
-                color: '#856404'
+                color: '#92400e',
+                fontSize: '0.875rem'
               }}>
                 No hay clientes disponibles sin préstamos activos.
               </div>
@@ -367,10 +399,13 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
                   onChange={handleClienteExistenteSelect}
                   style={{
                     ...inputStyle('clienteId'),
-                    padding: '0.5rem',
-                    fontSize: '1rem',
+                    width: '100%',
+                    padding: '0.75rem',
+                    fontSize: '0.875rem',
                     borderRadius: '6px',
-                    border: '1px solid #ced4da'
+                    border: '1px solid #d1d5db',
+                    background: '#ffffff',
+                    color: '#374151'
                   }}
                 >
                   <option value="">-- Selecciona un cliente --</option>
@@ -380,7 +415,11 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
                     </option>
                   ))}
                 </select>
-                {errors.clienteId && <small style={{ color: '#dc3545' }}>{errors.clienteId}</small>}
+                {errors.clienteId && (
+                  <small style={{ color: '#dc2626', marginTop: '0.25rem', display: 'block' }}>
+                    {errors.clienteId}
+                  </small>
+                )}
               </>
             )}
           </div>
@@ -389,79 +428,185 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
         {/* Formulario para Nuevo Cliente */}
         {clienteMode === 'nuevo' && (
           <>
+
             <div className="form-group">
-              <label>Cedula *</label>
+              <label style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: 500,
+                color: '#374151',
+                fontSize: '0.875rem'
+              }}>Cédula *</label>
               <input
                 type="text"
                 name="cedula"
                 value={formData.cedula}
                 onChange={handleChange}
                 onBlur={handleCedulaBlur}
-                placeholder="Ej: 123456789"
+                placeholder="123456789"
                 maxLength={9}
                 inputMode="numeric"
-                style={inputStyle('cedula')}
+                style={{
+                  ...inputStyle('cedula'),
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '0.875rem',
+                  border: `1px solid ${errors.cedula ? '#dc2626' : '#d1d5db'}`,
+                  borderRadius: '6px',
+                  backgroundColor: '#ffffff',
+                  transition: 'border-color 0.15s ease-in-out'
+                }}
                 disabled={!!initialData}
               />
-              {errors.cedula && <small style={{ color: '#dc3545' }}>{errors.cedula}</small>}
-              {verificandoCedula && <small style={{ color: '#6c757d' }}>Verificando cedula...</small>}
+              {errors.cedula && <small style={{ color: '#dc2626', display: 'block', marginTop: '0.25rem' }}>{errors.cedula}</small>}
+              {verificandoCedula && <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>Verificando cédula...</small>}
             </div>
 
             <div className="form-row">
               <div className="form-group">
-                <label>Nombre Completo *</label>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  fontWeight: 500,
+                  color: '#374151',
+                  fontSize: '0.875rem'
+                }}>Nombre Completo *</label>
                 <input
                   type="text"
                   name="nombre"
                   value={formData.nombre}
                   onChange={handleChange}
-                  placeholder="Ej: Juan Perez Solano"
-                  style={inputStyle('nombre')}
+                  placeholder="Juan Pérez Solano"
+                  style={{
+                    ...inputStyle('nombre'),
+                    width: '100%',
+                    padding: '0.75rem',
+                    fontSize: '0.875rem',
+                    border: `1px solid ${errors.nombre ? '#dc2626' : '#d1d5db'}`,
+                    borderRadius: '6px',
+                    backgroundColor: '#ffffff',
+                    transition: 'border-color 0.15s ease-in-out'
+                  }}
                 />
-                {errors.nombre && <small style={{ color: '#dc3545' }}>{errors.nombre}</small>}
+                {errors.nombre && <small style={{ color: '#dc2626', display: 'block', marginTop: '0.25rem' }}>{errors.nombre}</small>}
               </div>
 
               <div className="form-group">
-                <label>Telefono *</label>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  fontWeight: 500,
+                  color: '#374151',
+                  fontSize: '0.875rem'
+                }}>Teléfono *</label>
                 <input
                   type="text"
                   name="telefono"
                   value={formData.telefono}
                   onChange={handleChange}
-                  placeholder="Ej: 88889999"
+                  placeholder="88889999"
                   maxLength={8}
                   inputMode="numeric"
-                  style={inputStyle('telefono')}
+                  style={{
+                    ...inputStyle('telefono'),
+                    width: '100%',
+                    padding: '0.75rem',
+                    fontSize: '0.875rem',
+                    border: `1px solid ${errors.telefono ? '#dc2626' : '#d1d5db'}`,
+                    borderRadius: '6px',
+                    backgroundColor: '#ffffff',
+                    transition: 'border-color 0.15s ease-in-out'
+                  }}
                 />
-                {errors.telefono && <small style={{ color: '#dc3545' }}>{errors.telefono}</small>}
+                {errors.telefono && <small style={{ color: '#dc2626', display: 'block', marginTop: '0.25rem' }}>{errors.telefono}</small>}
               </div>
             </div>
 
             <div className="form-group">
-              <label>Ubicacion *</label>
+              <label style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: 500,
+                color: '#374151',
+                fontSize: '0.875rem'
+              }}>Ubicación Casa *</label>
               <input
                 type="text"
                 name="ubicacion"
                 value={formData.ubicacion}
                 onChange={handleChange}
-                placeholder="Coordenadas o direccion"
-                style={inputStyle('ubicacion')}
+                placeholder="Coordenadas o dirección"
+                style={{
+                  ...inputStyle('ubicacion'),
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '0.875rem',
+                  border: `1px solid ${errors.ubicacion ? '#dc2626' : '#d1d5db'}`,
+                  borderRadius: '6px',
+                  backgroundColor: '#ffffff',
+                  transition: 'border-color 0.15s ease-in-out'
+                }}
               />
-              {errors.ubicacion && <small style={{ color: '#dc3545' }}>{errors.ubicacion}</small>}
-              <small style={{ color: '#6c757d' }}>
-                Puedes pegar coordenadas de Google Maps o una direccion descriptiva.
+              {errors.ubicacion && <small style={{ color: '#dc2626', display: 'block', marginTop: '0.25rem' }}>{errors.ubicacion}</small>}
+              <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
+                Puedes pegar coordenadas de Google Maps o una dirección descriptiva.
               </small>
             </div>
 
             <div className="form-group">
-              <label>Notas</label>
+              <label style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: 500,
+                color: '#374151',
+                fontSize: '0.875rem'
+              }}>Ubicación Trabajo</label>
+              <input
+                type="text"
+                name="ubicacionExtra"
+                value={formData.ubicacionExtra}
+                onChange={handleChange}
+                placeholder="Coordenadas o dirección (opcional)"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '0.875rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  backgroundColor: '#ffffff',
+                  transition: 'border-color 0.15s ease-in-out'
+                }}
+              />
+              <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
+                Opcional. Puedes pegar coordenadas de Google Maps o una dirección descriptiva.
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: 500,
+                color: '#374151',
+                fontSize: '0.875rem'
+              }}>Notas</label>
               <textarea
                 name="notas"
                 value={formData.notas}
                 onChange={handleChange}
                 rows="3"
                 placeholder="Observaciones adicionales..."
-                style={{ resize: 'vertical' }}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '0.875rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  backgroundColor: '#ffffff',
+                  resize: 'vertical',
+                  fontFamily: 'inherit',
+                  transition: 'border-color 0.15s ease-in-out'
+                }}
               />
             </div>
           </>
@@ -472,18 +617,31 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
           <div style={{ 
             marginTop: '1rem', 
             padding: '1rem', 
-            background: '#e8f5e9', 
-            borderRadius: '8px',
-            border: '1px solid #81c784'
+            background: '#f0f9ff', 
+            borderRadius: '6px',
+            border: '1px solid #0ea5e9'
           }}>
-            <h4 style={{ margin: '0 0 0.75rem 0', color: '#2e7d32', fontSize: '0.9rem' }}>
-              Datos del Cliente Seleccionado
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: '#0c4a6e', 
+              fontSize: '0.875rem',
+              fontWeight: 600
+            }}>
+              Cliente Seleccionado
             </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.9rem' }}>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+              gap: '0.75rem', 
+              fontSize: '0.875rem'
+            }}>
               <div><strong>Nombre:</strong> {formData.nombre}</div>
               <div><strong>Cédula:</strong> {formData.cedula}</div>
               <div><strong>Teléfono:</strong> {formData.telefono}</div>
-              <div><strong>Ubicación:</strong> {formData.ubicacion}</div>
+              <div><strong>Ubicación Casa:</strong> {formData.ubicacion}</div>
+              {formData.ubicacionExtra && (
+                <div><strong>Ubicación Trabajo:</strong> {formData.ubicacionExtra}</div>
+              )}
               {formData.notas && (
                 <div style={{ gridColumn: '1 / -1' }}>
                   <strong>Notas:</strong> {formData.notas}
@@ -496,19 +654,33 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
 
       {/* SECCION: DATOS DEL PRESTAMO */}
       <div style={{
-        background: '#f6fff6',
-        border: '1px solid #b2dfb2',
-        borderRadius: '10px',
-        padding: '1.25rem',
+        background: '#ffffff',
+        border: '1px solid #e5e7eb',
+        borderRadius: '8px',
+        padding: '1.5rem',
         marginBottom: '1.5rem',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
       }}>
-        <h3 style={{ margin: '0 0 1rem 0', color: '#2e7d32', fontSize: '1rem', fontWeight: 700 }}>
-          Datos del Prestamo
+        <h3 style={{ 
+          margin: '0 0 1.5rem 0', 
+          color: '#374151', 
+          fontSize: '1.125rem', 
+          fontWeight: 600,
+          borderBottom: '1px solid #e5e7eb',
+          paddingBottom: '0.75rem'
+        }}>
+          Datos del Préstamo
         </h3>
 
         <div className="form-row">
           <div className="form-group">
-            <label>Monto Prestado (CRC) *</label>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontWeight: 500,
+              color: '#374151',
+              fontSize: '0.875rem'
+            }}>Monto Prestado (CRC) *</label>
             <input
               type="number"
               name="montoPrestado"
@@ -516,67 +688,126 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
               onChange={handleChange}
               min="1"
               placeholder="Ej: 100000"
-              style={inputStyle('montoPrestado')}
+              style={{
+                ...inputStyle('montoPrestado'),
+                width: '100%',
+                padding: '0.75rem',
+                fontSize: '0.875rem',
+                border: `1px solid ${errors.montoPrestado ? '#dc2626' : '#d1d5db'}`,
+                borderRadius: '6px',
+                backgroundColor: '#ffffff',
+                transition: 'border-color 0.15s ease-in-out'
+              }}
             />
-            {errors.montoPrestado && <small style={{ color: '#dc3545' }}>{errors.montoPrestado}</small>}
+            {errors.montoPrestado && <small style={{ color: '#dc2626', display: 'block', marginTop: '0.25rem' }}>{errors.montoPrestado}</small>}
           </div>
 
           <div className="form-group">
-            <label>Interes Base *</label>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontWeight: 500,
+              color: '#374151',
+              fontSize: '0.875rem'
+            }}>Interes Base *</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <button
                 type="button"
                 onClick={() => handleInteres(-0.05)}
                 disabled={Number(formData.interesBase) <= 0.15}
-                className="btn btn-secondary"
-                style={{ padding: '0.25rem 0.75rem', fontSize: '1.1rem' }}
+                style={{
+                  padding: '0.5rem',
+                  fontSize: '1rem',
+                  background: '#f9fafb',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  cursor: Number(formData.interesBase) <= 0.15 ? 'not-allowed' : 'pointer',
+                  color: Number(formData.interesBase) <= 0.15 ? '#9ca3af' : '#374151'
+                }}
               >
                 -
               </button>
-              <span style={{ fontWeight: 700, fontSize: '1.25rem', minWidth: '3rem', textAlign: 'center' }}>
+              <span style={{ fontWeight: 600, fontSize: '1.125rem', minWidth: '3rem', textAlign: 'center' }}>
                 {(Number(formData.interesBase) * 100).toFixed(0)}%
               </span>
               <button
                 type="button"
                 onClick={() => handleInteres(0.05)}
                 disabled={Number(formData.interesBase) >= 0.25}
-                className="btn btn-secondary"
-                style={{ padding: '0.25rem 0.75rem', fontSize: '1.1rem' }}
+                style={{
+                  padding: '0.5rem',
+                  fontSize: '1rem',
+                  background: '#f9fafb',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  cursor: Number(formData.interesBase) >= 0.25 ? 'not-allowed' : 'pointer',
+                  color: Number(formData.interesBase) >= 0.25 ? '#9ca3af' : '#374151'
+                }}
               >
                 +
               </button>
             </div>
-            <small style={{ color: '#6c757d' }}>Minimo 15% - Maximo 25% - pasos de 5%</small>
+            <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>Mínimo 15% - Máximo 25% - pasos de 5%</small>
           </div>
         </div>
 
         <div className="form-row">
           <div className="form-group">
-            <label>Fecha Inicio *</label>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontWeight: 500,
+              color: '#374151',
+              fontSize: '0.875rem'
+            }}>Fecha Inicio *</label>
             <input
               type="date"
               name="fechaInicio"
               value={formData.fechaInicio}
               onChange={handleChange}
               min={new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' })}
-              style={inputStyle('fechaInicio')}
+              style={{
+                ...inputStyle('fechaInicio'),
+                width: '100%',
+                padding: '0.75rem',
+                fontSize: '0.875rem',
+                border: `1px solid ${errors.fechaInicio ? '#dc2626' : '#d1d5db'}`,
+                borderRadius: '6px',
+                backgroundColor: '#ffffff',
+                transition: 'border-color 0.15s ease-in-out'
+              }}
             />
-            {errors.fechaInicio && <small style={{ color: '#dc3545' }}>{errors.fechaInicio}</small>}
+            {errors.fechaInicio && <small style={{ color: '#dc2626', display: 'block', marginTop: '0.25rem' }}>{errors.fechaInicio}</small>}
           </div>
 
           <div className="form-group">
-            <label>Tipo de Acuerdo *</label>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontWeight: 500,
+              color: '#374151',
+              fontSize: '0.875rem'
+            }}>Tipo de Acuerdo *</label>
             <select
               name="tipoAcuerdo"
               value={formData.tipoAcuerdo}
               onChange={handleChange}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                fontSize: '0.875rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                backgroundColor: '#ffffff',
+                transition: 'border-color 0.15s ease-in-out'
+              }}
             >
               {Object.entries(TIPO_ACUERDO_INFO).map(([key, { label }]) => (
                 <option key={key} value={key}>{label}</option>
               ))}
             </select>
             {formData.tipoAcuerdo && (
-              <small style={{ color: '#6c757d' }}>
+              <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
                 {TIPO_ACUERDO_INFO[formData.tipoAcuerdo]?.desc}
               </small>
             )}
@@ -584,10 +815,27 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
         </div>
 
         {formData.tipoAcuerdo === 'PAGO_EN_MES' && (
-          <div style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '1rem', marginBottom: '1rem' }}>
-            <h4 style={{ marginTop: 0 }}>Configuracion de Quincenas *</h4>
+          <div style={{ 
+            background: '#f8fafc', 
+            border: '1px solid #e2e8f0', 
+            borderRadius: '6px', 
+            padding: '1rem', 
+            marginBottom: '1rem' 
+          }}>
+            <h4 style={{ 
+              margin: '0 0 1rem 0',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: '#374151'
+            }}>Configuración de Quincenas *</h4>
             <div className="form-group">
-              <label>Cantidad de quincenas * (2-10)</label>
+              <label style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: 500,
+                color: '#374151',
+                fontSize: '0.875rem'
+              }}>Cantidad de quincenas * (2-10)</label>
               <input
                 type="number"
                 name="cantidadQuincenas"
@@ -596,52 +844,47 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
                 min="2"
                 max="10"
                 placeholder="Ej: 4"
-                style={inputStyle('cantidadQuincenas')}
+                style={{
+                  ...inputStyle('cantidadQuincenas'),
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '0.875rem',
+                  border: `1px solid ${errors.cantidadQuincenas ? '#dc2626' : '#d1d5db'}`,
+                  borderRadius: '6px',
+                  backgroundColor: '#ffffff',
+                  transition: 'border-color 0.15s ease-in-out'
+                }}
               />
-              {errors.cantidadQuincenas && <small style={{ color: '#dc3545' }}>{errors.cantidadQuincenas}</small>}
-              <small style={{ color: '#6c757d' }}>
-                Cada cuota = principal por quincena + {(Number(formData.interesBase) * 100).toFixed(0)}% del monto prestado. La ultima absorbe el residuo.
+              {errors.cantidadQuincenas && <small style={{ color: '#dc2626', display: 'block', marginTop: '0.25rem' }}>{errors.cantidadQuincenas}</small>}
+              <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
+                Cada cuota = principal por quincena + {(Number(formData.interesBase) * 100).toFixed(0)}% del monto prestado. La última absorbe el residuo.
               </small>
             </div>
-            {formData.montoPrestado && formData.cantidadQuincenas && Number(formData.cantidadQuincenas) >= 2 && Number(formData.cantidadQuincenas) <= 10 && (() => {
-              const n = Number(formData.cantidadQuincenas);
-              const m = Number(formData.montoPrestado);
-              const i = Number(formData.interesBase);
-              const interesFijo = Math.round(m * i);
-              const principalBase = Math.floor(m / n);
-              const residuoPrincipal = m - principalBase * (n - 1);
-              const cuotas = Array.from({ length: n }, (_, idx) =>
-                idx < n - 1 ? principalBase + interesFijo : residuoPrincipal + interesFijo
-              );
-              const esResiduo = residuoPrincipal !== principalBase;
-              return (
-                <div style={{ background: '#f8f9fa', borderRadius: '6px', padding: '0.75rem' }}>
-                  <div style={{ fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.85rem', color: '#495057' }}>
-                    Preview: {n} cuota{n !== 1 ? 's' : ''} | Principal/quincena: {formatMoney(principalBase)} | Interes: {formatMoney(interesFijo)}
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                    {cuotas.map((c, idx) => (
-                      <span key={idx} style={{
-                        background: idx === n - 1 && esResiduo ? '#fff3cd' : '#d4edda',
-                        border: `1px solid ${idx === n - 1 && esResiduo ? '#ffc107' : '#28a745'}`,
-                        borderRadius: '4px', padding: '0.2rem 0.5rem', fontSize: '0.85rem', fontWeight: 500,
-                      }}>
-                        #{idx + 1}: {formatMoney(c)}{idx === n - 1 && esResiduo ? ' *' : ''}
-                      </span>
-                    ))}
-                  </div>
-                  {esResiduo && <small style={{ color: '#856404', marginTop: '0.35rem', display: 'block' }}>* Ultima cuota con residuo de principal.</small>}
-                </div>
-              );
-            })()}
           </div>
         )}
 
         {formData.tipoAcuerdo === 'QUINCENAS_DOBLES' && (
-          <div style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '1rem', marginBottom: '1rem' }}>
-            <h4 style={{ marginTop: 0 }}>Configuracion de Cuotas *</h4>
+          <div style={{ 
+            background: '#f8fafc', 
+            border: '1px solid #e2e8f0', 
+            borderRadius: '6px', 
+            padding: '1rem', 
+            marginBottom: '1rem' 
+          }}>
+            <h4 style={{ 
+              margin: '0 0 1rem 0',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: '#374151'
+            }}>Configuración de Cuotas *</h4>
             <div className="form-group">
-              <label>Monto por cuota (CRC) *</label>
+              <label style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: 500,
+                color: '#374151',
+                fontSize: '0.875rem'
+              }}>Monto por cuota (CRC) *</label>
               <input
                 type="number"
                 name="montoCuota"
@@ -649,48 +892,35 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
                 onChange={handleChange}
                 min="1"
                 placeholder="Ej: 3000"
-                style={inputStyle('montoCuota')}
+                style={{
+                  ...inputStyle('montoCuota'),
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '0.875rem',
+                  border: `1px solid ${errors.montoCuota ? '#dc2626' : '#d1d5db'}`,
+                  borderRadius: '6px',
+                  backgroundColor: '#ffffff',
+                  transition: 'border-color 0.15s ease-in-out'
+                }}
               />
-              {errors.montoCuota && <small style={{ color: '#dc3545' }}>{errors.montoCuota}</small>}
-              <small style={{ color: '#6c757d' }}>La ultima cuota sera el residuo.</small>
+              {errors.montoCuota && <small style={{ color: '#dc2626', display: 'block', marginTop: '0.25rem' }}>{errors.montoCuota}</small>}
+              <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>La última cuota será el residuo.</small>
             </div>
-            {totalAPagar && formData.montoCuota && Number(formData.montoCuota) > 0 && Number(formData.montoCuota) < totalAPagar && (() => {
-              const mc = Number(formData.montoCuota);
-              const total = totalAPagar;
-              const n = Math.ceil(total / mc);
-              const residuo = total - mc * (n - 1);
-              const cuotas = Array.from({ length: n }, (_, i) => (i < n - 1 ? mc : residuo));
-              return (
-                <div style={{ background: '#f8f9fa', borderRadius: '6px', padding: '0.75rem' }}>
-                  <div style={{ fontWeight: 600, marginBottom: '0.4rem', fontSize: '0.85rem', color: '#495057' }}>
-                    Preview: {n} cuota{n !== 1 ? 's' : ''}
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                    {cuotas.map((c, i) => (
-                      <span key={i} style={{
-                        background: i === n - 1 && residuo !== mc ? '#fff3cd' : '#d4edda',
-                        border: `1px solid ${i === n - 1 && residuo !== mc ? '#ffc107' : '#28a745'}`,
-                        borderRadius: '4px', padding: '0.2rem 0.5rem', fontSize: '0.85rem', fontWeight: 500,
-                      }}>
-                        #{i + 1}: {formatMoney(c)}{i === n - 1 && residuo !== mc ? ' *' : ''}
-                      </span>
-                    ))}
-                  </div>
-                  {residuo !== mc && <small style={{ color: '#856404', marginTop: '0.35rem', display: 'block' }}>* Ultima cuota es el residuo.</small>}
-                </div>
-              );
-            })()}
           </div>
         )}
 
         <div style={{
-          background: '#e8f5e9', border: '2px solid #4caf50', borderRadius: '8px',
-          padding: '1rem 1.25rem',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: '#f0f9ff', 
+          border: '1px solid #0ea5e9', 
+          borderRadius: '6px',
+          padding: '1rem',
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
         }}>
           <div>
-            <div style={{ fontWeight: 600, color: '#2e7d32', marginBottom: '0.25rem' }}>Monto a pagar</div>
-            <div style={{ fontSize: '0.8rem', color: '#388e3c' }}>
+            <div style={{ fontWeight: 600, color: '#0c4a6e', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Monto a pagar</div>
+            <div style={{ fontSize: '0.75rem', color: '#0369a1' }}>
               {formData.tipoAcuerdo === 'PAGO_EN_MES'
                 ? `Monto + interes x ${formData.cantidadQuincenas || 'N'} quincenas`
                 : formData.tipoAcuerdo === 'QUINCENAS_DOBLES'
@@ -698,18 +928,68 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
                 : 'Monto + interes'}
             </div>
           </div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1b5e20' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0c4a6e' }}>
             {totalAPagar != null && formData.montoPrestado ? formatMoney(totalAPagar) : '--'}
           </div>
         </div>
       </div>
 
-      <div className="form-actions">
-        <button type="button" onClick={onCancel} className="btn btn-secondary">
+      <div className="form-actions" style={{
+        display: 'flex',
+        gap: '0.75rem',
+        justifyContent: 'flex-end',
+        marginTop: '1.5rem',
+        paddingTop: '1rem',
+        borderTop: '1px solid #e5e7eb'
+      }}>
+        <button 
+          type="button" 
+          onClick={onCancel} 
+          style={{
+            padding: '0.75rem 1.5rem',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            color: '#374151',
+            background: '#ffffff',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease-in-out'
+          }}
+          onMouseOver={(e) => {
+            e.target.style.background = '#f9fafb';
+            e.target.style.borderColor = '#9ca3af';
+          }}
+          onMouseOut={(e) => {
+            e.target.style.background = '#ffffff';
+            e.target.style.borderColor = '#d1d5db';
+          }}
+        >
           Cancelar
         </button>
-        <button type="submit" className="btn btn-primary">
-          {initialData ? 'Actualizar' : 'Crear'} Prestamo
+        <button 
+          type="submit" 
+          style={{
+            padding: '0.75rem 1.5rem',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            color: '#ffffff',
+            background: '#3b82f6',
+            border: '1px solid #3b82f6',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease-in-out'
+          }}
+          onMouseOver={(e) => {
+            e.target.style.background = '#2563eb';
+            e.target.style.borderColor = '#2563eb';
+          }}
+          onMouseOut={(e) => {
+            e.target.style.background = '#3b82f6';
+            e.target.style.borderColor = '#3b82f6';
+          }}
+        >
+          {initialData ? 'Actualizar' : 'Crear'} Préstamo
         </button>
       </div>
     </form>

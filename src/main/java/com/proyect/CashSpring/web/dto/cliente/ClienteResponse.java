@@ -7,15 +7,21 @@ public record ClienteResponse(
         String nombre,
         String telefono,
         String cedula,
+        // Ubicación principal (obligatoria)
         String ubicacion,
+        Double latitud,
+        Double longitud,
+        String googleMapsUrl,
+        String appleMapsUrl,
+        // Ubicación extra (opcional)
+        String ubicacionExtra,
+        Double latitudExtra,
+        Double longitudExtra,
+        String googleMapsUrlExtra,
+        String appleMapsUrlExtra,
+        // Otros
         String notas,
         boolean activo,
         Instant createdAt,
-        Instant updatedAt,
-        // Coordenadas extraídas del link (null si el link es corto o no parseable)
-        Double latitud,
-        Double longitud,
-        // URLs de navegación generadas
-        String googleMapsUrl,
-        String appleMapsUrl
+        Instant updatedAt
 ) {}

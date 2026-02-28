@@ -47,9 +47,7 @@ public class ApiExceptionHandler {
     public ResponseEntity<?> handleDataIntegrity(DataIntegrityViolationException ex) {
         String msg = "Ya existe un registro con esos datos (valor duplicado)";
         String cause = ex.getRootCause() != null ? ex.getRootCause().getMessage() : "";
-        if (cause.contains("uk_clientes_telefono") || cause.contains("telefono")) {
-            msg = "Ya existe un cliente registrado con ese teléfono.";
-        } else if (cause.contains("uk_clientes_cedula") || cause.contains("cedula")) {
+        if (cause.contains("uk_clientes_cedula") || cause.contains("cedula")) {
             msg = "Ya existe un cliente registrado con esa cédula.";
         }
         return ResponseEntity.status(HttpStatus.CONFLICT)

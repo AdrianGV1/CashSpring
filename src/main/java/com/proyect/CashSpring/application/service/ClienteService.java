@@ -30,6 +30,7 @@ public class ClienteService {
                 .telefono(req.telefono())
                 .cedula(req.cedula())
                 .ubicacion(normalizarUbicacion(req.ubicacion()))
+                .ubicacionExtra(normalizarUbicacion(req.ubicacionExtra()))
                 .notas(req.notas())
                 .activo(true)
                 .build();
@@ -72,6 +73,7 @@ public class ClienteService {
         entity.setTelefono(req.telefono());
         entity.setCedula(req.cedula());
         entity.setUbicacion(normalizarUbicacion(req.ubicacion()));
+        entity.setUbicacionExtra(normalizarUbicacion(req.ubicacionExtra()));
         entity.setNotas(req.notas());
         if (req.activo() != null) entity.setActivo(req.activo());
 
@@ -108,16 +110,13 @@ public class ClienteService {
     }
 
     private ClienteResponse toResponse(ClienteEntity e) {
+        // --- Ubicación principal ---
         Coordenadas coords = extraerCoordenadas(e.getUbicacion());
-        
-        // DEBUG
         System.out.println("📍 UBICACIÓN ORIGINAL: " + e.getUbicacion());
         System.out.println("📍 COORDENADAS EXTRAÍDAS: " + coords);
-        
-        // Generar URLs de navegación si hay coordenadas
+
         String googleMapsUrl = null;
         String appleMapsUrl = null;
-        
         if (coords != null) {
             googleMapsUrl = com.proyect.CashSpring.domain.util.MapUrlGenerator.generateGoogleMapsUrl(coords.lat(), coords.lng());
             appleMapsUrl = com.proyect.CashSpring.domain.util.MapUrlGenerator.generateAppleMapsUrl(coords.lat(), coords.lng());
@@ -127,21 +126,35 @@ public class ClienteService {
         } else {
             System.out.println("❌ NO SE PUDIERON EXTRAER COORDENADAS");
         }
-        
+
+        // --- Ubicación extra (opcional) ---
+        Coordenadas coordsExtra = extraerCoordenadas(e.getUbicacionExtra());
+        String googleMapsUrlExtra = null;
+        String appleMapsUrlExtra = null;
+        if (coordsExtra != null) {
+            googleMapsUrlExtra = com.proyect.CashSpring.domain.util.MapUrlGenerator.generateGoogleMapsUrl(coordsExtra.lat(), coordsExtra.lng());
+            appleMapsUrlExtra = com.proyect.CashSpring.domain.util.MapUrlGenerator.generateAppleMapsUrl(coordsExtra.lat(), coordsExtra.lng());
+        }
+
         return new ClienteResponse(
                 e.getId(),
                 e.getNombre(),
                 e.getTelefono(),
                 e.getCedula(),
                 e.getUbicacion(),
-                e.getNotas(),
-                e.isActivo(),
-                e.getCreatedAt(),
-                e.getUpdatedAt(),
                 coords != null ? coords.lat() : null,
                 coords != null ? coords.lng() : null,
                 googleMapsUrl,
-                appleMapsUrl
+                appleMapsUrl,
+                e.getUbicacionExtra(),
+                coordsExtra != null ? coordsExtra.lat() : null,
+                coordsExtra != null ? coordsExtra.lng() : null,
+                googleMapsUrlExtra,
+                appleMapsUrlExtra,
+                e.getNotas(),
+                e.isActivo(),
+                e.getCreatedAt(),
+                e.getUpdatedAt()
         );
     }
 
