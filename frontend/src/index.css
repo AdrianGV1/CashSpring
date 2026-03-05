@@ -230,13 +230,26 @@ body {
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 1.75rem;
   padding-bottom: 1.25rem;
   border-bottom: 1px solid #e5e7eb;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 .page-header h1 { margin: 0 0 0.25rem 0; }
 .page-header .subtitle { margin: 0; }
+
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .page-header > div:last-child {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}
 
 /* Filter bar spacing */
 .filters-bar {
@@ -773,6 +786,14 @@ a {
   padding: 0.25rem 0;
   margin-bottom: 0.5rem;
   display: inline-block;
+}
+
+@media (max-width: 640px) {
+  .page-header > div:last-child .btn {
+    padding: 0.5rem 0.9rem;
+    font-size: 0.8rem;
+    flex: 1 1 auto;
+  }
 }
 
 /* ===========================

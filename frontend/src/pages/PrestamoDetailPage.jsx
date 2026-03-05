@@ -38,7 +38,6 @@ const PrestamoDetailPage = () => {
   const [fechaLiquidacion, setFechaLiquidacion] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' }));
   const [exportingPdf, setExportingPdf] = useState(false);
 
-  // Estados para control de penalización
   const [showNegociarModal, setShowNegociarModal] = useState(false);
   const [montoNegociar, setMontoNegociar] = useState('');
   const [penalizacionLoading, setPenalizacionLoading] = useState(false);
@@ -69,7 +68,6 @@ const PrestamoDetailPage = () => {
       setCuotas(cuotasData);
       setPagos(pagosData);
 
-      // Cargar datos del cliente
       const clienteResp = await clienteApi.getById(prestamoActual.clienteId);
       setCliente(clienteResp);
 
@@ -85,7 +83,6 @@ const PrestamoDetailPage = () => {
     e.preventDefault();
     setPagoError(null);
     
-    // Si es supervisor, pedir confirmación
     if (isSupervisor()) {
       const confirmar = window.confirm(
         '¿Está seguro de enviar esta solicitud de pago?\n\n' +
@@ -97,7 +94,6 @@ const PrestamoDetailPage = () => {
       }
     }
     
-    // Calcular saldo pendiente usando el cálculo correcto
     const cuotasPendientesRestante = cuotas
       .filter(c => c.estado === 'PENDIENTE')
       .reduce((sum, c) => sum + (c.montoObjetivo - (c.montoCancelado || 0)), 0);
@@ -115,10 +111,8 @@ const PrestamoDetailPage = () => {
         notas: pagoData.notas
       });
       
-      // Recargar datos
       await loadData();
       
-      // Limpiar formulario
       setPagoData({
         monto: '',
         fechaPago: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' }),
@@ -127,7 +121,6 @@ const PrestamoDetailPage = () => {
       setPagoError(null);
       setShowPagoForm(false);
       
-      // Mostrar mensaje de éxito según el rol
       if (isSupervisor()) {
         alert('✅ Solicitud de pago enviada exitosamente.\n\nLa solicitud quedará pendiente hasta que un administrador la apruebe.');
       } else {
@@ -155,10 +148,8 @@ const PrestamoDetailPage = () => {
       setReverting(pagoId);
       await pagoApi.revertir(pagoId);
       
-      // Pequeño delay para asegurar que la transacción del backend se complete
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Recargar datos
       await loadData();
       
       alert('✅ Pago revertido exitosamente.\n\nLas cuotas han sido restauradas a su estado anterior.');
@@ -317,7 +308,6 @@ const PrestamoDetailPage = () => {
         return;
       }
     }
-    // Validar que no haya penalización pendiente
     if (prestamo.penalizacionAcumulada && prestamo.penalizacionAcumulada > 0) {
       setExtensionError(
         `No se puede extender el préstamo mientras tenga penalización pendiente. ` +
@@ -401,7 +391,6 @@ const PrestamoDetailPage = () => {
   };
 
   const calcularProgresoCuotas = () => {
-    // Calcular progreso solo de las CUOTAS (sin penalización)
     const totalCuotas = cuotas.reduce((sum, c) => sum + c.montoObjetivo, 0);
     const totalCuotasPagado = cuotas.reduce((sum, c) => sum + (c.montoCancelado || 0), 0);
     const porcentaje = totalCuotas > 0 ? (totalCuotasPagado / totalCuotas) * 100 : 0;
@@ -414,12 +403,10 @@ const PrestamoDetailPage = () => {
   };
 
   const calcularProgresoPenalizacion = () => {
-    // Calcular cuánto se ha pagado EN penalización
     const pagosAprobados = pagos.filter(p => p.estadoAprobacion === 'APROBADO');
     const totalPagadoGeneral = pagosAprobados.reduce((sum, pago) => sum + pago.monto, 0);
     const totalPagadoEnCuotas = cuotas.reduce((sum, c) => sum + (c.montoCancelado || 0), 0);
     
-    // Lo que sobra después de pagar cuotas es lo pagado en penalización
     const penalizacionPagada = Math.max(0, totalPagadoGeneral - totalPagadoEnCuotas);
     const penalizacionActual = prestamo.penalizacionAcumulada || 0;
     const penalizacionTotal = penalizacionPagada + penalizacionActual;
@@ -435,7 +422,6 @@ const PrestamoDetailPage = () => {
   };
 
   const calcularProgreso = () => {
-    // Mantener para compatibilidad con código existente
     const pagosAprobados = pagos.filter(p => p.estadoAprobacion === 'APROBADO');
     const totalPagado = pagosAprobados.reduce((sum, pago) => sum + pago.monto, 0);
     const totalAdeudado = prestamo.totalObjetivo + (prestamo.penalizacionAcumulada || 0);
@@ -446,9 +432,6 @@ const PrestamoDetailPage = () => {
   };
 
   const calcularRestante = () => {
-    // Calcular el restante real sumando:
-    // 1. Las cuotas pendientes (montoObjetivo - montoCancelado)
-    // 2. La penalización acumulada
     const cuotasPendientes = cuotas
       .filter(c => c.estado === 'PENDIENTE')
       .reduce((sum, c) => sum + (c.montoObjetivo - (c.montoCancelado || 0)), 0);
@@ -485,7 +468,6 @@ const PrestamoDetailPage = () => {
   const penAcumuladaLiq = prestamo.penalizacionAcumulada || 0;
   const montoLiqTotal = montoLiqBase + penAcumuladaLiq;
   const restanteReal = calcularRestante();
-  // Un préstamo está completo solo si el restante es exactamente ₡0
   const estaCompleto = estaLiquidado || restanteReal === 0;
 
   return (

@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
 import { clienteApi } from '../services/api';
+import { uploadToCloudinary } from '../services/cloudinaryService';
 
 const TIPO_ACUERDO_INFO = {
   PENALIZACION_POR_DIA: {
@@ -37,6 +38,54 @@ const formatMoney = (amount) =>
     minimumFractionDigits: 0,
   }).format(amount);
 
+// Componente reutilizable para subir una imagen
+const ImageUploadField = ({ label, fotoKey, fotos, fotosPreviews, uploadingFotos, onSelect, error, required: isRequired }) => (
+  <div className="form-group">
+    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: '#374151', fontSize: '0.875rem' }}>
+      {label}{isRequired && <span style={{ color: '#dc2626', marginLeft: '0.2rem' }}>*</span>}
+    </label>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+      <label style={{
+        cursor: uploadingFotos[fotoKey] ? 'not-allowed' : 'pointer',
+        padding: '0.5rem 1rem',
+        fontSize: '0.875rem',
+        fontWeight: 500,
+        background: uploadingFotos[fotoKey] ? '#f3f4f6' : '#ffffff',
+        border: `1px solid ${fotos[fotoKey] ? '#16a34a' : error ? '#dc2626' : '#d1d5db'}`,
+        borderRadius: '6px',
+        color: uploadingFotos[fotoKey] ? '#9ca3af' : fotos[fotoKey] ? '#16a34a' : error ? '#dc2626' : '#374151',
+        userSelect: 'none',
+        transition: 'all 0.15s ease-in-out',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.35rem',
+      }}>
+        <input
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          disabled={uploadingFotos[fotoKey]}
+          onChange={(e) => onSelect(e, fotoKey)}
+        />
+        {uploadingFotos[fotoKey] ? '⏳ Subiendo...' : fotos[fotoKey] ? '🔄 Cambiar foto' : '📷 Seleccionar foto'}
+      </label>
+      {fotosPreviews[fotoKey] && (
+        <img
+          src={fotosPreviews[fotoKey]}
+          alt={label}
+          style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: '6px', border: '1px solid #d1d5db' }}
+        />
+      )}
+    </div>
+    {fotos[fotoKey] && !uploadingFotos[fotoKey] && (
+      <small style={{ color: '#16a34a', display: 'block', marginTop: '0.25rem', fontWeight: 500 }}>✓ Imagen subida correctamente</small>
+    )}
+    {error && !fotos[fotoKey] && (
+      <small style={{ color: '#dc2626', display: 'block', marginTop: '0.25rem', fontWeight: 500 }}>{error}</small>
+    )}
+  </div>
+);
+
 const INITIAL_FORM = {
   clienteId: null,
   cedula: '',
@@ -44,6 +93,7 @@ const INITIAL_FORM = {
   telefono: '',
   ubicacion: '',
   ubicacionExtra: '',
+  ordenPatronal: '',
   notas: '',
   montoPrestado: '',
   interesBase: 0.20,
@@ -62,6 +112,23 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
   const [clienteMode, setClienteMode] = useState('nuevo'); // 'nuevo' o 'existente'
   const [clientesDisponibles, setClientesDisponibles] = useState([]);
   const [cargandoClientes, setCargandoClientes] = useState(false);
+
+  // Estado para fotos (URLs de Cloudinary)
+  const [fotos, setFotos] = useState({
+    ordenPatronal: null,
+    cedulaFrente: null,
+    cedulaDetras: null,
+    ubicacion: null,
+    ubicacionExtra: null,
+  });
+  const [fotosPreviews, setFotosPreviews] = useState({
+    ordenPatronal: null,
+    cedulaFrente: null,
+    cedulaDetras: null,
+    ubicacion: null,
+    ubicacionExtra: null,
+  });
+  const [uploadingFotos, setUploadingFotos] = useState({});
 
   useEffect(() => {
     if (initialData) {
@@ -103,8 +170,10 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
       telefono: '',
       ubicacion: '',
       ubicacionExtra: '',
+      ordenPatronal: '',
       notas: '',
     });
+    setFotosPreviews({ ordenPatronal: null, cedulaFrente: null, cedulaDetras: null, ubicacion: null, ubicacionExtra: null });
     setErrors({});
   };
 
@@ -179,6 +248,29 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
   };
 
+  const handleImageSelect = async (e, key) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    // Preview inmediato
+    const previewUrl = URL.createObjectURL(file);
+    setFotosPreviews((prev) => ({ ...prev, [key]: previewUrl }));
+    // Subir a Cloudinary
+    setUploadingFotos((prev) => ({ ...prev, [key]: true }));
+    try {
+      const url = await uploadToCloudinary(file);
+      setFotos((prev) => ({ ...prev, [key]: url }));
+      // Limpiar error de esa foto al subir exitosamente
+      const errorKey = 'foto' + key.charAt(0).toUpperCase() + key.slice(1);
+      setErrors((prev) => ({ ...prev, [errorKey]: null }));
+    } catch (err) {
+      console.error('Error al subir foto:', err);
+      alert('Error al subir la imagen. Intenta de nuevo.');
+      setFotosPreviews((prev) => ({ ...prev, [key]: null }));
+    } finally {
+      setUploadingFotos((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
   const handleInteres = (delta) => {
     setFormData((prev) => {
       const current = Number(prev.interesBase);
@@ -204,6 +296,13 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
       if (!formData.telefono.trim()) e.telefono = 'El telefono es obligatorio.';
       else if (formData.telefono.trim().length !== 8) e.telefono = 'El teléfono debe tener exactamente 8 dígitos.';
       if (!formData.ubicacion.trim()) e.ubicacion = 'La ubicacion es obligatoria.';
+      if (!formData.ubicacionExtra.trim()) e.ubicacionExtra = 'La ubicación de trabajo es obligatoria.';
+      // Fotos obligatorias
+      if (!fotos.ordenPatronal) e.fotoOrdenPatronal = 'La foto de la orden patronal es obligatoria.';
+      if (!fotos.cedulaFrente) e.fotoCedulaFrente = 'La foto del frente de la cédula es obligatoria.';
+      if (!fotos.cedulaDetras) e.fotoCedulaDetras = 'La foto del detrás de la cédula es obligatoria.';
+      if (!fotos.ubicacion) e.fotoUbicacion = 'La foto de la ubicación de la casa es obligatoria.';
+      if (!fotos.ubicacionExtra) e.fotoUbicacionExtra = 'La foto de la ubicación de trabajo es obligatoria.';
     } else if (clienteMode === 'existente') {
       // Validar que se haya seleccionado un cliente
       if (!formData.clienteId) e.clienteId = 'Debe seleccionar un cliente.';
@@ -253,8 +352,15 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
       dataToSend.nombre = formData.nombre.trim();
       dataToSend.telefono = formData.telefono.trim();
       dataToSend.ubicacion = formData.ubicacion.trim();
-      dataToSend.ubicacionExtra = formData.ubicacionExtra.trim() || null;
+      dataToSend.ubicacionExtra = formData.ubicacionExtra.trim();
       dataToSend.notas = formData.notas.trim() || null;
+      // Fotos
+      dataToSend.ordenPatronal = formData.ordenPatronal?.trim() || null;
+      dataToSend.fotoOrdenPatronal = fotos.ordenPatronal || null;
+      dataToSend.fotoCedulaFrente = fotos.cedulaFrente || null;
+      dataToSend.fotoCedulaDetras = fotos.cedulaDetras || null;
+      dataToSend.fotoUbicacion = fotos.ubicacion || null;
+      dataToSend.fotoUbicacionExtra = fotos.ubicacionExtra || null;
     }
 
     if (formData.tipoAcuerdo === 'PAGO_EN_MES') {
@@ -560,25 +666,27 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
                 fontWeight: 500,
                 color: '#374151',
                 fontSize: '0.875rem'
-              }}>Ubicación Trabajo</label>
+              }}>Ubicación Trabajo *</label>
               <input
                 type="text"
                 name="ubicacionExtra"
                 value={formData.ubicacionExtra}
                 onChange={handleChange}
-                placeholder="Coordenadas o dirección (opcional)"
+                placeholder="Coordenadas o dirección"
                 style={{
+                  ...inputStyle('ubicacionExtra'),
                   width: '100%',
                   padding: '0.75rem',
                   fontSize: '0.875rem',
-                  border: '1px solid #d1d5db',
+                  border: `1px solid ${errors.ubicacionExtra ? '#dc2626' : '#d1d5db'}`,
                   borderRadius: '6px',
                   backgroundColor: '#ffffff',
                   transition: 'border-color 0.15s ease-in-out'
                 }}
               />
+              {errors.ubicacionExtra && <small style={{ color: '#dc2626', display: 'block', marginTop: '0.25rem' }}>{errors.ubicacionExtra}</small>}
               <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
-                Opcional. Puedes pegar coordenadas de Google Maps o una dirección descriptiva.
+                Puedes pegar coordenadas de Google Maps o una dirección descriptiva.
               </small>
             </div>
 
@@ -651,6 +759,109 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
           </div>
         )}
       </div>
+
+      {/* SECCION: DOCUMENTOS (solo cliente nuevo) */}
+      {clienteMode === 'nuevo' && (
+        <div style={{
+          background: '#ffffff',
+          border: '1px solid #e5e7eb',
+          borderRadius: '8px',
+          padding: '1.5rem',
+          marginBottom: '1.5rem',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+        }}>
+          <h3 style={{
+            margin: '0 0 1.5rem 0',
+            color: '#374151',
+            fontSize: '1.125rem',
+            fontWeight: 600,
+            borderBottom: '1px solid #e5e7eb',
+            paddingBottom: '0.75rem'
+          }}>
+            Documentos y Fotos
+          </h3>
+
+          {/* Orden Patronal */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '1rem', marginBottom: '1rem' }}>
+            <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>📋 Orden Patronal</h4>
+            <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: '#374151', fontSize: '0.875rem' }}>Nombre / Número de Orden Patronal</label>
+              <input
+                type="text"
+                name="ordenPatronal"
+                value={formData.ordenPatronal || ''}
+                onChange={handleChange}
+                placeholder="Ej: Empresa XYZ S.A. / OP-12345"
+                style={{ width: '100%', padding: '0.75rem', fontSize: '0.875rem', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: '#ffffff', transition: 'border-color 0.15s ease-in-out' }}
+              />
+            </div>
+            <ImageUploadField
+              label="Foto de la Orden Patronal"
+              fotoKey="ordenPatronal"
+              fotos={fotos}
+              fotosPreviews={fotosPreviews}
+              uploadingFotos={uploadingFotos}
+              onSelect={handleImageSelect}
+              error={errors.fotoOrdenPatronal}
+              required
+            />
+          </div>
+
+          {/* Cédula */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '1rem', marginBottom: '1rem' }}>
+            <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>🪪 Cédula de Identidad</h4>
+            <div className="form-row">
+              <ImageUploadField
+                label="Cédula — Frente"
+                fotoKey="cedulaFrente"
+                fotos={fotos}
+                fotosPreviews={fotosPreviews}
+                uploadingFotos={uploadingFotos}
+                onSelect={handleImageSelect}
+                error={errors.fotoCedulaFrente}
+                required
+              />
+              <ImageUploadField
+                label="Cédula — Detrás"
+                fotoKey="cedulaDetras"
+                fotos={fotos}
+                fotosPreviews={fotosPreviews}
+                uploadingFotos={uploadingFotos}
+                onSelect={handleImageSelect}
+                error={errors.fotoCedulaDetras}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Fotos de ubicaciones */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '1rem' }}>
+            <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>📍 Fotos de Ubicaciones</h4>
+            <div className="form-row">
+              <ImageUploadField
+                label="Foto Ubicación Casa"
+                fotoKey="ubicacion"
+                fotos={fotos}
+                fotosPreviews={fotosPreviews}
+                uploadingFotos={uploadingFotos}
+                onSelect={handleImageSelect}
+                error={errors.fotoUbicacion}
+                required
+              />
+              <ImageUploadField
+                label="Foto Ubicación Trabajo"
+                fotoKey="ubicacionExtra"
+                fotos={fotos}
+                fotosPreviews={fotosPreviews}
+                uploadingFotos={uploadingFotos}
+                onSelect={handleImageSelect}
+                error={errors.fotoUbicacionExtra}
+                required
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SECCION: DATOS DEL PRESTAMO */}
       <div style={{

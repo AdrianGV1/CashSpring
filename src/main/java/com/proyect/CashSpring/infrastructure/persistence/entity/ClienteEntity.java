@@ -37,8 +37,26 @@ public class ClienteEntity {
     @Column(name="ubicacion", length = 500)
     private String ubicacion;
 
-    @Column(name="ubicacion_extra", length = 500)
+    @Column(name="ubicacion_extra", nullable = false, length = 500)
     private String ubicacionExtra;
+
+    @Column(name="orden_patronal", length = 300)
+    private String ordenPatronal;
+
+    @Column(name="foto_orden_patronal", length = 1000)
+    private String fotoOrdenPatronal;
+
+    @Column(name="foto_cedula_frente", length = 1000)
+    private String fotoCedulaFrente;
+
+    @Column(name="foto_cedula_detras", length = 1000)
+    private String fotoCedulaDetras;
+
+    @Column(name="foto_ubicacion", length = 1000)
+    private String fotoUbicacion;
+
+    @Column(name="foto_ubicacion_extra", length = 1000)
+    private String fotoUbicacionExtra;
 
     @Column(name="notas", columnDefinition = "text")
     private String notas;

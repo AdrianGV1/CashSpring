@@ -5,6 +5,66 @@ import { prestamoApi } from '../services/prestamoApi';
 import { reporteApi } from '../services/reporteApi';
 import { isAdmin } from '../services/authHelper';
 import Loading from '../components/Loading';
+import { uploadToCloudinary } from '../services/cloudinaryService';
+
+// Componente para editar/borrar/subir una foto en ClienteDetailPage
+const EditFotoField = ({ fotoKey, label, formData, fotosPreviews, uploadingFotos, onSelect, onRemove }) => {
+  const currentUrl = formData[fotoKey];
+  const previewUrl = fotosPreviews[fotoKey];
+  const uploading = uploadingFotos[fotoKey];
+  const displaySrc = previewUrl || currentUrl;
+
+  return (
+    <div>
+      <label className='form-label'>{label}</label>
+      {displaySrc && (
+        <div style={{ position: 'relative', display: 'inline-block', marginBottom: '0.5rem' }}>
+          <a href={currentUrl || displaySrc} target='_blank' rel='noopener noreferrer'>
+            <img
+              src={displaySrc}
+              alt={label}
+              style={{ width: 140, height: 90, objectFit: 'cover', borderRadius: '6px', border: '1px solid #d1d5db', display: 'block' }}
+            />
+          </a>
+          {!uploading && (
+            <button
+              type='button'
+              onClick={() => onRemove(fotoKey)}
+              title='Eliminar foto'
+              style={{
+                position: 'absolute', top: -6, right: -6,
+                width: 22, height: 22, borderRadius: '50%',
+                background: '#ef4444', color: '#fff',
+                border: 'none', cursor: 'pointer',
+                fontSize: '0.7rem', fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >✕</button>
+          )}
+        </div>
+      )}
+      <div>
+        <label style={{
+          cursor: uploading ? 'not-allowed' : 'pointer',
+          display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+          padding: '0.5rem 0.75rem', fontSize: '0.875rem', fontWeight: 500,
+          background: uploading ? '#f3f4f6' : '#ffffff',
+          border: `1px solid ${currentUrl && !previewUrl ? '#16a34a' : '#d1d5db'}`,
+          borderRadius: '6px',
+          color: uploading ? '#9ca3af' : currentUrl && !previewUrl ? '#16a34a' : '#374151',
+          transition: 'all 0.15s ease-in-out',
+          userSelect: 'none',
+        }}>
+          <input type='file' accept='image/*' style={{ display: 'none' }} disabled={uploading} onChange={(e) => onSelect(e, fotoKey)} />
+          {uploading ? '⏳ Subiendo...' : currentUrl ? '🔄 Cambiar foto' : '📷 Subir foto'}
+        </label>
+        {currentUrl && !uploading && (
+          <small style={{ color: '#16a34a', display: 'block', marginTop: '0.25rem' }}>✓ Foto guardada</small>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default function ClienteDetailPage() {
   const { id } = useParams();
@@ -25,8 +85,16 @@ export default function ClienteDetailPage() {
     cedula: '',
     ubicacion: '',
     ubicacionExtra: '',
+    ordenPatronal: '',
+    fotoOrdenPatronal: null,
+    fotoCedulaFrente: null,
+    fotoCedulaDetras: null,
+    fotoUbicacion: null,
+    fotoUbicacionExtra: null,
     notas: ''
   });
+  const [fotosPreviews, setFotosPreviews] = useState({});
+  const [uploadingFotos, setUploadingFotos] = useState({});
 
   useEffect(() => {
     loadCliente();
@@ -44,8 +112,15 @@ export default function ClienteDetailPage() {
         cedula: response.cedula || '',
         ubicacion: response.ubicacion || '',
         ubicacionExtra: response.ubicacionExtra || '',
+        ordenPatronal: response.ordenPatronal || '',
+        fotoOrdenPatronal: response.fotoOrdenPatronal || null,
+        fotoCedulaFrente: response.fotoCedulaFrente || null,
+        fotoCedulaDetras: response.fotoCedulaDetras || null,
+        fotoUbicacion: response.fotoUbicacion || null,
+        fotoUbicacionExtra: response.fotoUbicacionExtra || null,
         notas: response.notas || ''
       });
+      setFotosPreviews({});
     } catch (err) {
       setError('Cliente no encontrado');
       console.error(err);
@@ -79,11 +154,23 @@ export default function ClienteDetailPage() {
       cedula: cliente.cedula || '',
       ubicacion: cliente.ubicacion || '',
       ubicacionExtra: cliente.ubicacionExtra || '',
+      ordenPatronal: cliente.ordenPatronal || '',
+      fotoOrdenPatronal: cliente.fotoOrdenPatronal || null,
+      fotoCedulaFrente: cliente.fotoCedulaFrente || null,
+      fotoCedulaDetras: cliente.fotoCedulaDetras || null,
+      fotoUbicacion: cliente.fotoUbicacion || null,
+      fotoUbicacionExtra: cliente.fotoUbicacionExtra || null,
       notas: cliente.notas || ''
     });
+    setFotosPreviews({});
+    setUploadingFotos({});
   };
 
   const handleSave = async () => {
+    if (!formData.ubicacionExtra.trim()) {
+      alert('La ubicación de trabajo es obligatoria.');
+      return;
+    }
     try {
       setSaving(true);
       const response = await clienteApi.update(id, {
@@ -155,6 +242,28 @@ export default function ClienteDetailPage() {
       return;
     }
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleImageSelect = async (e, key) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setFotosPreviews(prev => ({ ...prev, [key]: URL.createObjectURL(file) }));
+    setUploadingFotos(prev => ({ ...prev, [key]: true }));
+    try {
+      const url = await uploadToCloudinary(file);
+      setFormData(prev => ({ ...prev, [key]: url }));
+    } catch (err) {
+      console.error('Error al subir foto:', err);
+      alert('Error al subir la imagen. Intenta de nuevo.');
+      setFotosPreviews(prev => ({ ...prev, [key]: null }));
+    } finally {
+      setUploadingFotos(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const handleRemoveFoto = (key) => {
+    setFormData(prev => ({ ...prev, [key]: null }));
+    setFotosPreviews(prev => ({ ...prev, [key]: null }));
   };
 
   if (loading) {
@@ -320,6 +429,85 @@ export default function ClienteDetailPage() {
                   <p style={{ color: '#374151', whiteSpace: 'pre-wrap' }}>{cliente.notas}</p>
                 </div>
               )}
+
+              {/* Documentos y Fotos */}
+              {(cliente.ordenPatronal || cliente.fotoOrdenPatronal || cliente.fotoCedulaFrente || cliente.fotoCedulaDetras || cliente.fotoUbicacion || cliente.fotoUbicacionExtra) && (
+                <div>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.75rem' }}>📁 Documentos y Fotos</p>
+
+                  {/* Orden Patronal */}
+                  {(cliente.ordenPatronal || cliente.fotoOrdenPatronal) && (
+                    <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>📋 Orden Patronal</p>
+                      {cliente.ordenPatronal && (
+                        <p style={{ fontSize: '0.875rem', color: '#374151', marginBottom: '0.5rem' }}>{cliente.ordenPatronal}</p>
+                      )}
+                      {cliente.fotoOrdenPatronal && (
+                        <a href={cliente.fotoOrdenPatronal} target='_blank' rel='noopener noreferrer'
+                          style={{ display: 'inline-block' }}>
+                          <img src={cliente.fotoOrdenPatronal} alt='Orden Patronal'
+                            style={{ width: 140, height: 90, objectFit: 'cover', borderRadius: '6px', border: '1px solid #d1d5db', cursor: 'pointer' }} />
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Cédula */}
+                  {(cliente.fotoCedulaFrente || cliente.fotoCedulaDetras) && (
+                    <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>🪪 Cédula de Identidad</p>
+                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                        {cliente.fotoCedulaFrente && (
+                          <div>
+                            <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Frente</p>
+                            <a href={cliente.fotoCedulaFrente} target='_blank' rel='noopener noreferrer'>
+                              <img src={cliente.fotoCedulaFrente} alt='Cédula Frente'
+                                style={{ width: 140, height: 90, objectFit: 'cover', borderRadius: '6px', border: '1px solid #d1d5db', cursor: 'pointer' }} />
+                            </a>
+                          </div>
+                        )}
+                        {cliente.fotoCedulaDetras && (
+                          <div>
+                            <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Detrás</p>
+                            <a href={cliente.fotoCedulaDetras} target='_blank' rel='noopener noreferrer'>
+                              <img src={cliente.fotoCedulaDetras} alt='Cédula Detrás'
+                                style={{ width: 140, height: 90, objectFit: 'cover', borderRadius: '6px', border: '1px solid #d1d5db', cursor: 'pointer' }} />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fotos de Ubicaciones */}
+                  {(cliente.fotoUbicacion || cliente.fotoUbicacionExtra) && (
+                    <div style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>📍 Fotos de Ubicaciones</p>
+                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                        {cliente.fotoUbicacion && (
+                          <div>
+                            <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Casa</p>
+                            <a href={cliente.fotoUbicacion} target='_blank' rel='noopener noreferrer'>
+                              <img src={cliente.fotoUbicacion} alt='Ubicación Casa'
+                                style={{ width: 140, height: 90, objectFit: 'cover', borderRadius: '6px', border: '1px solid #d1d5db', cursor: 'pointer' }} />
+                            </a>
+                          </div>
+                        )}
+                        {cliente.fotoUbicacionExtra && (
+                          <div>
+                            <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>Trabajo</p>
+                            <a href={cliente.fotoUbicacionExtra} target='_blank' rel='noopener noreferrer'>
+                              <img src={cliente.fotoUbicacionExtra} alt='Ubicación Trabajo'
+                                style={{ width: 140, height: 90, objectFit: 'cover', borderRadius: '6px', border: '1px solid #d1d5db', cursor: 'pointer' }} />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -401,17 +589,20 @@ export default function ClienteDetailPage() {
               </div>
 
               <div>
-                <label className='form-label'>Ubicación Trabajo (URL o coordenadas)</label>
+                <label className='form-label'>
+                  Ubicación Trabajo (URL o coordenadas) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
                 <input
                   type='text'
                   name='ubicacionExtra'
                   value={formData.ubicacionExtra}
                   onChange={handleInputChange}
                   className='form-input'
-                  placeholder='Ej: https://maps.app.goo.gl/... o 9.322,-83.699 (opcional)'
+                  placeholder='Ej: https://maps.app.goo.gl/... o 9.322,-83.699'
+                  required
                 />
                 <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                  Opcional. Puedes pegar un enlace de Google Maps o coordenadas en formato decimal (lat,lng)
+                  Puedes pegar un enlace de Google Maps o coordenadas en formato decimal (lat,lng)
                 </p>
               </div>
 
@@ -426,6 +617,46 @@ export default function ClienteDetailPage() {
                   placeholder='Notas adicionales sobre el cliente...'
                 />
               </div>
+
+              {/* Documentos y Fotos */}
+              <div>
+                <label className='form-label'>📁 Documentos y Fotos</label>
+
+                {/* Orden Patronal */}
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '1rem', marginBottom: '0.75rem' }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.75rem' }}>📋 Orden Patronal</p>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label className='form-label'>Nombre / Número</label>
+                    <input
+                      type='text'
+                      name='ordenPatronal'
+                      value={formData.ordenPatronal || ''}
+                      onChange={handleInputChange}
+                      className='form-input'
+                      placeholder='Ej: Empresa XYZ S.A. / OP-12345'
+                    />
+                  </div>
+                  <EditFotoField fotoKey='fotoOrdenPatronal' label='Foto Orden Patronal' formData={formData} fotosPreviews={fotosPreviews} uploadingFotos={uploadingFotos} onSelect={handleImageSelect} onRemove={handleRemoveFoto} />
+                </div>
+
+                {/* Cédula */}
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '1rem', marginBottom: '0.75rem' }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.75rem' }}>🪪 Cédula de Identidad</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                    <EditFotoField fotoKey='fotoCedulaFrente' label='Frente' formData={formData} fotosPreviews={fotosPreviews} uploadingFotos={uploadingFotos} onSelect={handleImageSelect} onRemove={handleRemoveFoto} />
+                    <EditFotoField fotoKey='fotoCedulaDetras' label='Detrás' formData={formData} fotosPreviews={fotosPreviews} uploadingFotos={uploadingFotos} onSelect={handleImageSelect} onRemove={handleRemoveFoto} />
+                  </div>
+                </div>
+
+                {/* Fotos Ubicaciones */}
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '1rem' }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.75rem' }}>📍 Fotos de Ubicaciones</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                    <EditFotoField fotoKey='fotoUbicacion' label='Ubicación Casa' formData={formData} fotosPreviews={fotosPreviews} uploadingFotos={uploadingFotos} onSelect={handleImageSelect} onRemove={handleRemoveFoto} />
+                    <EditFotoField fotoKey='fotoUbicacionExtra' label='Ubicación Trabajo' formData={formData} fotosPreviews={fotosPreviews} uploadingFotos={uploadingFotos} onSelect={handleImageSelect} onRemove={handleRemoveFoto} />
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Action buttons for edit mode */}
@@ -433,7 +664,7 @@ export default function ClienteDetailPage() {
               <button 
                 onClick={handleSave} 
                 className='btn btn-primary'
-                disabled={saving || !formData.nombre || !formData.telefono}
+                disabled={saving || !formData.nombre || !formData.telefono || !formData.ubicacionExtra}
               >
                 {saving ? '💾 Guardando...' : '💾 Guardar Cambios'}
               </button>

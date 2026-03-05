@@ -20,8 +20,27 @@ public record ClienteCreateRequest(
         @Size(max = 500, message = "ubicacion máximo 500 caracteres")
         String ubicacion,
 
+        @NotBlank(message = "ubicacionExtra es obligatoria")
         @Size(max = 500, message = "ubicacionExtra máximo 500 caracteres")
         String ubicacionExtra,
+
+        @Size(max = 300, message = "ordenPatronal máximo 300 caracteres")
+        String ordenPatronal,
+
+        @Size(max = 1000)
+        String fotoOrdenPatronal,
+
+        @Size(max = 1000)
+        String fotoCedulaFrente,
+
+        @Size(max = 1000)
+        String fotoCedulaDetras,
+
+        @Size(max = 1000)
+        String fotoUbicacion,
+
+        @Size(max = 1000)
+        String fotoUbicacionExtra,
 
         String notas
 ) {}

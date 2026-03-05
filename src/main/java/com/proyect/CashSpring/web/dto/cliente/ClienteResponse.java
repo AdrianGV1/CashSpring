@@ -23,5 +23,12 @@ public record ClienteResponse(
         String notas,
         boolean activo,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        // Documentos
+        String ordenPatronal,
+        String fotoOrdenPatronal,
+        String fotoCedulaFrente,
+        String fotoCedulaDetras,
+        String fotoUbicacion,
+        String fotoUbicacionExtra
 ) {}

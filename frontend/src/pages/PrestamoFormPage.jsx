@@ -31,7 +31,6 @@ const PrestamoFormPage = () => {
     <div className="container">
       <div className="page-header">
         <h1>Nuevo Préstamo</h1>
-        <p className="subtitle">Registra el cliente y crea el préstamo en un solo paso</p>
       </div>
 
       {error && (

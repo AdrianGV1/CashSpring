@@ -24,6 +24,18 @@ public class PrestamoCreateRequest {
 
     private String ubicacionExtra;
 
+    private String ordenPatronal;
+
+    private String fotoOrdenPatronal;
+
+    private String fotoCedulaFrente;
+
+    private String fotoCedulaDetras;
+
+    private String fotoUbicacion;
+
+    private String fotoUbicacionExtra;
+
     private String notas;
 
     private BigDecimal interesBase;
@@ -61,6 +73,24 @@ public class PrestamoCreateRequest {
 
     public String getUbicacionExtra() { return ubicacionExtra; }
     public void setUbicacionExtra(String ubicacionExtra) { this.ubicacionExtra = ubicacionExtra; }
+
+    public String getOrdenPatronal() { return ordenPatronal; }
+    public void setOrdenPatronal(String ordenPatronal) { this.ordenPatronal = ordenPatronal; }
+
+    public String getFotoOrdenPatronal() { return fotoOrdenPatronal; }
+    public void setFotoOrdenPatronal(String fotoOrdenPatronal) { this.fotoOrdenPatronal = fotoOrdenPatronal; }
+
+    public String getFotoCedulaFrente() { return fotoCedulaFrente; }
+    public void setFotoCedulaFrente(String fotoCedulaFrente) { this.fotoCedulaFrente = fotoCedulaFrente; }
+
+    public String getFotoCedulaDetras() { return fotoCedulaDetras; }
+    public void setFotoCedulaDetras(String fotoCedulaDetras) { this.fotoCedulaDetras = fotoCedulaDetras; }
+
+    public String getFotoUbicacion() { return fotoUbicacion; }
+    public void setFotoUbicacion(String fotoUbicacion) { this.fotoUbicacion = fotoUbicacion; }
+
+    public String getFotoUbicacionExtra() { return fotoUbicacionExtra; }
+    public void setFotoUbicacionExtra(String fotoUbicacionExtra) { this.fotoUbicacionExtra = fotoUbicacionExtra; }
 
     public String getNotas() { return notas; }
     public void setNotas(String notas) { this.notas = notas; }
