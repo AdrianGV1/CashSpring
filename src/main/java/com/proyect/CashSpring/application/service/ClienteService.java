@@ -31,6 +31,12 @@ public class ClienteService {
                 .cedula(req.cedula())
                 .ubicacion(normalizarUbicacion(req.ubicacion()))
                 .ubicacionExtra(normalizarUbicacion(req.ubicacionExtra()))
+                .ordenPatronal(req.ordenPatronal())
+                .fotoOrdenPatronal(req.fotoOrdenPatronal())
+                .fotoCedulaFrente(req.fotoCedulaFrente())
+                .fotoCedulaDetras(req.fotoCedulaDetras())
+                .fotoUbicacion(req.fotoUbicacion())
+                .fotoUbicacionExtra(req.fotoUbicacionExtra())
                 .notas(req.notas())
                 .activo(true)
                 .build();
@@ -74,6 +80,12 @@ public class ClienteService {
         entity.setCedula(req.cedula());
         entity.setUbicacion(normalizarUbicacion(req.ubicacion()));
         entity.setUbicacionExtra(normalizarUbicacion(req.ubicacionExtra()));
+        entity.setOrdenPatronal(req.ordenPatronal());
+        if (req.fotoOrdenPatronal() != null) entity.setFotoOrdenPatronal(req.fotoOrdenPatronal());
+        if (req.fotoCedulaFrente() != null) entity.setFotoCedulaFrente(req.fotoCedulaFrente());
+        if (req.fotoCedulaDetras() != null) entity.setFotoCedulaDetras(req.fotoCedulaDetras());
+        if (req.fotoUbicacion() != null) entity.setFotoUbicacion(req.fotoUbicacion());
+        if (req.fotoUbicacionExtra() != null) entity.setFotoUbicacionExtra(req.fotoUbicacionExtra());
         entity.setNotas(req.notas());
         if (req.activo() != null) entity.setActivo(req.activo());
 
@@ -154,7 +166,13 @@ public class ClienteService {
                 e.getNotas(),
                 e.isActivo(),
                 e.getCreatedAt(),
-                e.getUpdatedAt()
+                e.getUpdatedAt(),
+                e.getOrdenPatronal(),
+                e.getFotoOrdenPatronal(),
+                e.getFotoCedulaFrente(),
+                e.getFotoCedulaDetras(),
+                e.getFotoUbicacion(),
+                e.getFotoUbicacionExtra()
         );
     }
 

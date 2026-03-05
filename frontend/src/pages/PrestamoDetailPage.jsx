@@ -492,7 +492,7 @@ const PrestamoDetailPage = () => {
     <div className="container">
       <div className="page-header">
         <div>
-          <button onClick={() => navigate('/prestamos')} className="btn-back">
+          <button onClick={() => navigate('/prestamos')} className="btn btn-secondary btn-sm" style={{ marginBottom: '0.5rem' }}>
             ← Volver
           </button>
           <h1>Préstamo #{prestamo.prestamoId}</h1>
