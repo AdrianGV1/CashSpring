@@ -976,7 +976,6 @@ const PrestamoForm = ({ onSubmit, onCancel, initialData = null }) => {
               name="fechaInicio"
               value={formData.fechaInicio}
               onChange={handleChange}
-              min={new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' })}
               style={{
                 ...inputStyle('fechaInicio'),
                 width: '100%',
